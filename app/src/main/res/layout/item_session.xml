@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 会话列表项布局 -->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="2dp"
+    android:layout_marginBottom="8dp"
+    android:background="@android:color/transparent"
+    android:foreground="?attr/selectableItemBackground"
+    android:padding="16dp"
+    android:tag="glass:card">
+
+    <!-- 会话标题（第一个用户问题） -->
+    <TextView
+        android:id="@+id/tvSessionTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:textColor="@color/mt_text_primary"
+        android:textSize="15sp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/tvSessionTaskType"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="你好，请介绍一下自己" />
+
+    <TextView
+        android:id="@+id/tvSessionTaskType"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/bg_workspace_badge"
+        android:paddingStart="7dp"
+        android:paddingTop="2dp"
+        android:paddingEnd="7dp"
+        android:paddingBottom="2dp"
+        android:text="generate"
+        android:textColor="@color/mt_primary_dark"
+        android:textSize="10sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/tvSessionTitle"
+        app:layout_constraintEnd_toStartOf="@id/progressSessionLoading"
+        app:layout_constraintTop_toTopOf="@id/tvSessionTitle" />
+
+    <ProgressBar
+        android:id="@+id/progressSessionLoading"
+        style="?android:attr/progressBarStyleSmall"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:layout_marginStart="10dp"
+        android:indeterminate="true"
+        android:indeterminateTint="@color/mt_primary"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/tvSessionTitle"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/tvSessionTitle"
+        tools:visibility="visible" />
+
+    <!-- 创建时间 -->
+    <TextView
+        android:id="@+id/tvSessionTime"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textColor="@color/mt_text_muted"
+        android:textSize="12sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvSessionTitle"
+        tools:text="01/06 14:30" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+
+
+
+
