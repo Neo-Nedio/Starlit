@@ -100,12 +100,6 @@ internal object WebAppAcceptanceValidator {
                 "CORE_SUCCESS criterion ${criterion.id} must have P0 priority"
             )
         }
-        if (criteria.none { WebAppAcceptanceCoverage.EMPTY_STATE in it.covers.orEmpty() }) {
-            diagnostics += error(
-                "APP_SPEC_EMPTY_STATE_COVERAGE_MISSING",
-                "Acceptance contract must cover EMPTY_STATE"
-            )
-        }
         if (hasErrorStates && criteria.none {
                 WebAppAcceptanceCoverage.ERROR_STATE in it.covers.orEmpty()
             }

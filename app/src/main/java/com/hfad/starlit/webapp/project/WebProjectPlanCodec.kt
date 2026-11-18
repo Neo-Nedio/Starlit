@@ -18,6 +18,9 @@ object WebProjectPlanCodec {
         modelOutput: String,
         requireAppSpec: Boolean = false
     ): WebProjectPlanningResult {
+        if (modelOutput.isBlank()) {
+            throw WebAppProjectException("模型没有返回项目计划正文")
+        }
         val json = extractJson(modelOutput)
         val root = runCatching { JsonParser.parseString(json).asJsonObject }
             .getOrElse { error ->

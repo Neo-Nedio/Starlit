@@ -22,6 +22,7 @@ import com.hfad.starlit.data.database.AppDatabase
 import com.hfad.starlit.data.database.chat.ChatMessageEntity
 import com.hfad.starlit.data.database.chat.ChatSessionEntity
 import com.hfad.starlit.data.logging.api.ApiDiagnosticContext
+import com.hfad.starlit.data.logging.chat.HarnessConversationStore
 import com.hfad.starlit.data.logging.harness.record
 import com.hfad.starlit.data.repository.chat.ChatRepository
 import com.hfad.starlit.service.HarnessForegroundServiceController
@@ -988,6 +989,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         cancelStreaming(sessionId)
         viewModelScope.launch {
             repository.deleteSession(sessionId)
+            withContext(Dispatchers.IO) {
+                HarnessConversationStore.delete(getApplication<Application>(), sessionId)
+            }
             _generateTaskStates.value = _generateTaskStates.value.orEmpty() - sessionId
             if (_currentSessionId.value == sessionId) {
                 _currentSessionId.value = null
@@ -1070,6 +1074,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         cancelAllStreaming()
         viewModelScope.launch {
             repository.deleteAllSessions()
+            withContext(Dispatchers.IO) {
+                HarnessConversationStore.deleteAll(getApplication<Application>())
+            }
             _currentSessionId.value = null
             _messages.value = emptyList()
             currentTokenUsageSessionId = null
@@ -1111,7 +1118,7 @@ internal const val APP_DIFF_LOG_PREVIEW_CHARS = 3_000
 internal const val GENERATED_APP_HARNESS_MAX_ITERATIONS = 8
 internal const val GENERATED_APP_REPAIR_PATCH_ATTEMPTS = 2
 internal const val HARNESS_NOTIFICATION_UPDATE_INTERVAL_MS = 750L
-internal const val WEB_PROJECT_PLAN_MAX_TOKENS = 8_000
+internal const val WEB_PROJECT_PLAN_MAX_TOKENS = 24_000
 internal const val WEB_PROJECT_DIRECTORY_NAME_MAX_CHARS = 64
 internal const val WEB_PROJECT_DIRECTORY_ID_CHARS = 8
 private data class SessionRouting(

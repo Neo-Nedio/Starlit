@@ -35,7 +35,10 @@ data class ChatRequest(
     val diagnosticContext: ApiDiagnosticContext? = null,
 
     @Transient
-    val tokenUsageListener: ((ModelTokenUsage) -> Unit)? = null
+    val tokenUsageListener: ((ModelTokenUsage) -> Unit)? = null,
+
+    @Transient
+    val finishReasonListener: ((String) -> Unit)? = null
 )
 
 data class StreamOptions(

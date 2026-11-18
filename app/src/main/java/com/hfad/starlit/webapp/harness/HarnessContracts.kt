@@ -23,7 +23,9 @@ data class HarnessRunRequest(
     val qualityGateContract: WebQualityGateContract = WebQualityGateContract(),
     val planPath: String? = null,
     val fileTasks: List<HarnessFileTask> = emptyList(),
-    val metadata: Map<String, String> = emptyMap()
+    val metadata: Map<String, String> = emptyMap(),
+    val restoredConversation: List<HarnessMessage> = emptyList(),
+    val onConversationMessage: ((HarnessMessage) -> Unit)? = null
 )
 
 data class HarnessPreparedPrompt(
@@ -65,7 +67,8 @@ data class HarnessMessage(
     val content: String,
     val toolCallId: String? = null,
     val toolName: String? = null,
-    val toolCalls: List<HarnessToolCall> = emptyList()
+    val toolCalls: List<HarnessToolCall> = emptyList(),
+    @Transient val preserveOriginalContent: Boolean = false
 )
 
 enum class HarnessModelPurpose {

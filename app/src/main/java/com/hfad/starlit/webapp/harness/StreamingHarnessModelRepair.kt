@@ -491,7 +491,7 @@ internal object HarnessSingleActionProtocol {
             .mapNotNull(::toConversationMessage)
             .forEach { message ->
                 val previous = result.lastOrNull()
-                if (previous != null && previous.role == message.role && message.role != "system") {
+                if (previous != null && previous.role == message.role && message.role == "assistant") {
                     result[result.lastIndex] = ApiMessage(
                         role = message.role,
                         content = "${previous.content}\n\n${message.content}"
@@ -525,9 +525,16 @@ internal object HarnessSingleActionProtocol {
                             "历史 assistant 消息包含 ${message.toolCalls.size} 个动作，违反单动作协议"
                         )
                     }
-                    renderToolCall(message.toolCalls.single())
+                    renderToolCall(
+                        message.toolCalls.single(),
+                        compactWriteBody = !message.preserveOriginalContent
+                    )
                 } else {
-                    compactWriteBodies(message.content)
+                    if (message.preserveOriginalContent) {
+                        message.content
+                    } else {
+                        compactWriteBodies(message.content)
+                    }
                 }
                 content.takeIf(String::isNotBlank)?.let { ApiMessage("assistant", it) }
             }
@@ -553,12 +560,15 @@ internal object HarnessSingleActionProtocol {
         }
     }
 
-    private fun renderToolCall(call: HarnessToolCall): String {
+    private fun renderToolCall(call: HarnessToolCall, compactWriteBody: Boolean): String {
         val path = call.arguments["path"]
             ?: throw HarnessModelProtocolException("历史 ${call.name} 动作缺少 path")
         val escapedPath = escapeXmlAttribute(path)
         return when (call.name) {
-            TOOL_WRITE -> renderCompactedWrite(path, call.arguments["content"].orEmpty())
+            TOOL_WRITE -> {
+                val content = call.arguments["content"].orEmpty()
+                if (compactWriteBody) renderCompactedWrite(path, content) else renderWrite(path, content)
+            }
             TOOL_READ -> "<starlit-read path=\"$escapedPath\"/>"
             TOOL_LIST -> "<starlit-list path=\"$escapedPath\"/>"
             TOOL_DELETE -> "<starlit-delete path=\"$escapedPath\"/>"
@@ -579,6 +589,14 @@ internal object HarnessSingleActionProtocol {
             append("\"/>")
             append("</starlit-write>")
         }
+    }
+
+    private fun renderWrite(path: String, content: String): String = buildString {
+        append("<starlit-write path=\"")
+        append(escapeXmlAttribute(path))
+        append("\">")
+        append(content)
+        append("</starlit-write>")
     }
 
     private fun toolTurn(callId: String, name: String, path: String): HarnessModelTurn {

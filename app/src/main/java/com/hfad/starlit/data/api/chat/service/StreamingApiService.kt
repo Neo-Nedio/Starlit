@@ -293,6 +293,9 @@ object StreamingApiService {
                     tokenUsage.reportIfConsumed(streamStarted)
                     if (sawDone) {
                         markStreamCompleted()
+                    } else if (tokenUsage.finishReason != null) {
+                        markStreamCompleted()
+                        trySendBlocking(StreamEvent.Done)
                     } else if (call.isCanceled()) {
                         markStreamCanceled()
                     } else if (!call.isCanceled() && streamStarted && !disconnectionReported) {
@@ -557,9 +560,15 @@ object StreamingApiService {
                 )
             }
             val chunk = gson.fromJson(obj, StreamChunk::class.java)
-            val delta = chunk.choices?.firstOrNull()?.delta ?: return null
-            delta.reasoningContent?.let { return StreamEvent.Thinking(it) }
-            delta.content?.let { StreamEvent.Content(it) }
+            val choice = chunk.choices?.firstOrNull() ?: return null
+            choice.finishReason?.let(tokenUsage::updateFinishReason)
+            val delta = choice.delta
+            // Some OpenAI-compatible providers include both fields in one delta,
+            // sometimes with an empty reasoning_content. Keep user-visible output
+            // first; losing content here can leave planners with an empty response.
+            delta?.content?.takeIf(String::isNotEmpty)?.let { return StreamEvent.Content(it) }
+            delta?.reasoningContent?.takeIf(String::isNotEmpty)?.let { return StreamEvent.Thinking(it) }
+            null
         } catch (_: Exception) {
             null
         }
@@ -589,6 +598,11 @@ object StreamingApiService {
                 }
 
                 "message_delta" -> {
+                    obj.getAsJsonObject("delta")
+                        ?.get("stop_reason")
+                        ?.takeUnless { it.isJsonNull }
+                        ?.asString
+                        ?.let(tokenUsage::updateFinishReason)
                     obj.getAsJsonObject("usage")?.let { usage ->
                         tokenUsage.updateProviderUsage(
                             inputTokens = usage.longValue("input_tokens"),
@@ -634,6 +648,7 @@ object StreamingApiService {
 
     private class RequestTokenUsageTracker(request: ChatRequest) {
         private val listener = request.tokenUsageListener
+        private val finishReasonListener = request.finishReasonListener
         private val estimatedInputTokens = ContextTokenCounter
             .estimateApiMessages(request.messages)
             .toLong()
@@ -642,6 +657,15 @@ object StreamingApiService {
         private var providerInputTokens: Long? = null
         private var providerOutputTokens: Long? = null
         private var providerTotalTokens: Long? = null
+        var finishReason: String? = null
+            private set
+
+        fun updateFinishReason(value: String) {
+            value.takeIf(String::isNotBlank)?.let { reason ->
+                finishReason = reason
+                finishReasonListener?.invoke(reason)
+            }
+        }
 
         fun record(event: StreamEvent) {
             when (event) {

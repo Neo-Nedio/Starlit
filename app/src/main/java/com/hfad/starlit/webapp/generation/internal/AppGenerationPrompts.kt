@@ -19,12 +19,12 @@ internal object AppGenerationPrompts {
 
 严格要求：
 1. 必须生成一个完整的、自包含的HTML文件，所有CSS和JavaScript都内联在HTML中
-2. 必须先完成信息架构再实现界面：明确主任务、内容区、主要操作、空状态和必要的导航，不要把控件直接堆在页面左上角
+2. 必须先完成信息架构再实现界面：明确用户要求的主任务、内容区、主要操作和必要导航；按产品实际需要设计初始/空状态，不要为游戏或工具应用虚构清单空态，也不要把控件直接堆在页面左上角
 3. 必须建立完整视觉系统：在 :root 定义颜色、字号、圆角、阴影和间距变量；使用 CSS reset；至少设计 6 个有明确职责的组件/区域样式
 4. 所有 button、input、textarea、select 都必须覆盖浏览器默认外观，并实现合适的尺寸、圆角、字体、间距，以及 focus、active 或 disabled 等状态
 5. 必须使用移动端 App 风格的响应式布局，包含清晰的顶部区域、可滚动内容区和稳定可用的关键操作区域；只有确有需要时才使用底部导航
 6. 使用现代且克制的配色、层级、留白、卡片、圆角和阴影；触控目标不小于 44px；不能使用未排版的默认控件或大面积无意义留白
-7. 所有用户可见操作必须由 JavaScript 完整实现，包括新增、编辑、删除、筛选、搜索、切换、关闭等适用交互；必须提供空状态和即时反馈，不能有占位、TODO、伪代码或空函数
+7. 所有用户可见操作必须由 JavaScript 完整实现，包括新增、编辑、删除、筛选、搜索、切换、关闭等适用交互；列表或内容型应用应提供空状态，游戏和工具应提供符合自身流程的初始状态与即时反馈；不能有占位、TODO、伪代码或空函数
 8. 不能依赖 CDN、网络字体、外部 CSS、外部 JavaScript 或远程图片；离线打开也必须完整可用
 9. 输出前在内部检查 HTML、CSS 和 JavaScript 是否闭合，控件是否已美化，主要操作是否能从初始状态完成；不要输出检查过程
 10. 只返回HTML代码，不要有任何解释说明文字；代码必须以<!DOCTYPE html>开头，以</html>结尾
@@ -62,7 +62,7 @@ internal object AppGenerationPrompts {
 
             持久化数据要求：
             1. 项目内 JSON 只用于只读种子数据或配置，不能冒充运行时持久化。
-            2. 如果 App 有待办、笔记、记录、设置、历史、分数、进度等需要下次打开仍保留的数据，必须使用 `window.StarlitApp.storage` 和稳定的应用状态 key。
+            2. 如果当前产品需求要求用户数据、游戏进度或配置在下次打开时仍保留，必须使用 `window.StarlitApp.storage` 和稳定的应用状态 key。
             3. 读取示例：`var r = JSON.parse(window.StarlitApp.storage.storageGet('app-state-v1')); var state = r.success && r.data.exists ? JSON.parse(r.data.valueJson) : {};`
             4. 写入示例：`window.StarlitApp.storage.storageSet('app-state-v1', JSON.stringify(state));`
             5. `app-state-v1` 只是示例；`storageSet` 的第二个参数必须是合法 JSON 字符串，同一应用始终逐字复用其规格声明的稳定 key。
@@ -117,7 +117,7 @@ internal object AppGenerationPrompts {
             - 允许 ES modules 和 `fetch()` 读取同项目 JSON；路径必须相对于当前项目。
             - HTML 负责语义结构，CSS 负责完整视觉系统，JavaScript 负责真实交互；不要把大量 CSS/JS 重新内联回 HTML。
             - 跨文件的 class、id、data-*、CSS 选择器和 DOM 查询必须逐项一致；不得让 HTML 与 CSS/JavaScript 使用不同版本的结构命名。
-            - 应用命名使用“STARLITxxx”的自然名称，入口必须包含移动端 viewport、非空 title、清晰主任务、空状态和完整交互。
+            - 应用命名使用“STARLITxxx”的自然名称，入口必须包含移动端 viewport、非空 title、清晰主任务、符合产品流程的初始/空状态和完整交互；不得把当前用户目标改造成清单、记录等无关产品。
             - 触控目标不小于 44px，布局适配 ${metrics.widthPixels}x${metrics.heightPixels}、$orientation、安全区和内容滚动。
             - 不能留下 TODO、占位实现、空函数或只展示不能操作的界面。
             - JavaScript 应提供 `window.__STARLIT_SELF_TEST__`，返回自测用例数组，覆盖核心状态和至少一个主要交互。

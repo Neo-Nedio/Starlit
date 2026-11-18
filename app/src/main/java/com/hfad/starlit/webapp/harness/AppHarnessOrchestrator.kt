@@ -38,6 +38,19 @@ class AppHarnessOrchestrator(
         var previousToolFingerprint: String? = null
         var repeatedToolCount = 0
         val messages = mutableListOf<HarnessMessage>()
+        val restoredConversation = request.restoredConversation.filterNot {
+            it.role == HarnessMessageRole.SYSTEM
+        }
+
+        fun appendConversationMessage(
+            target: MutableList<HarnessMessage>,
+            message: HarnessMessage
+        ) {
+            target += message
+            if (message.role != HarnessMessageRole.SYSTEM) {
+                request.onConversationMessage?.invoke(message)
+            }
+        }
 
         traceLogger.record(
             runId = request.runId,
@@ -168,7 +181,29 @@ class AppHarnessOrchestrator(
             message = "正在组装 Harness 提示词"
         )
         messages += HarnessMessage(HarnessMessageRole.SYSTEM, preparedPrompt.systemPrompt)
-        messages += HarnessMessage(HarnessMessageRole.USER, preparedPrompt.userPrompt)
+        messages += restoredConversation
+        appendConversationMessage(
+            messages,
+            HarnessMessage(HarnessMessageRole.USER, preparedPrompt.userPrompt)
+        )
+        traceLogger.record(
+            runId = request.runId,
+            component = "ORCHESTRATOR",
+            operation = "restore_conversation",
+            status = HarnessTraceStatus.SUCCEEDED,
+            message = if (restoredConversation.isEmpty()) {
+                "当前会话没有可恢复的 Harness 历史"
+            } else {
+                "已恢复同一会话的 Harness 对话历史"
+            },
+            iteration = 0,
+            details = mapOf(
+                "restored_message_count" to restoredConversation.size.toString(),
+                "restored_roles" to restoredConversation.joinToString(",") { it.role.name },
+                "restored_tool_call_count" to restoredConversation.sumOf { it.toolCalls.size }.toString(),
+                "new_user_appended_last" to "true"
+            )
+        )
         emit(
             stage = GenerateTaskState.Stage.PROMPT,
             outcome = GenerateTaskState.Outcome.PASSED,
@@ -217,10 +252,10 @@ class AppHarnessOrchestrator(
             try {
                 if (feedback != null) {
                     val diagnostics = compactDiagnostics(feedback.diagnostics)
-                    messages += HarnessMessage(
+                    appendConversationMessage(messages, HarnessMessage(
                         role = HarnessMessageRole.USER,
                         content = buildRepairPrompt(feedback.stage, feedback.summary, diagnostics)
-                    )
+                    ))
                     emit(
                         stage = feedback.stage,
                         outcome = GenerateTaskState.Outcome.RETRYING,
@@ -272,11 +307,11 @@ class AppHarnessOrchestrator(
                     }
                 )
                 if (turn.content.isNotBlank() || turn.toolCalls.isNotEmpty()) {
-                    messages += HarnessMessage(
+                    appendConversationMessage(messages, HarnessMessage(
                         role = HarnessMessageRole.ASSISTANT,
                         content = turn.content,
                         toolCalls = turn.toolCalls
-                    )
+                    ))
                 }
                 emit(
                     stage = GenerateTaskState.Stage.MODEL,
@@ -366,12 +401,12 @@ class AppHarnessOrchestrator(
                     )
                     val result = executeTool(request, call, iteration)
                     artifactPath = result.artifactPath ?: artifactPath
-                    messages += HarnessMessage(
+                    appendConversationMessage(messages, HarnessMessage(
                         role = HarnessMessageRole.TOOL,
                         content = buildToolResultMessage(result),
                         toolCallId = call.id,
                         toolName = call.name
-                    )
+                    ))
                     emit(
                         stage = GenerateTaskState.Stage.TOOL,
                         outcome = if (result.success) {
@@ -493,9 +528,9 @@ class AppHarnessOrchestrator(
                     "task_count" to scheduledTasks.size.toString(),
                     "dependency_count" to task.dependsOn.size.toString()
                 )
-                val taskMessages = mutableListOf(
-                    HarnessMessage(HarnessMessageRole.SYSTEM, preparedPrompt.systemPrompt),
-                    HarnessMessage(HarnessMessageRole.USER, preparedPrompt.userPrompt),
+                val taskMessages = messages.toMutableList()
+                appendConversationMessage(
+                    taskMessages,
                     HarnessMessage(
                         HarnessMessageRole.USER,
                         buildFileTaskPrompt(task, taskNumber, scheduledTasks.size)
@@ -524,22 +559,22 @@ class AppHarnessOrchestrator(
                     totalToolCalls++
                     val result = executeTool(request, call, iteration)
                     artifactPath = result.artifactPath ?: artifactPath
+                    appendConversationMessage(taskMessages, HarnessMessage(
+                        role = HarnessMessageRole.ASSISTANT,
+                        content = "",
+                        toolCalls = listOf(call)
+                    ))
+                    appendConversationMessage(taskMessages, HarnessMessage(
+                        role = HarnessMessageRole.TOOL,
+                        content = buildToolResultMessage(result),
+                        toolCallId = call.id,
+                        toolName = call.name
+                    ))
                     if (!result.success) {
                         throw IllegalStateException(
                             "文件任务 ${task.path} 的宿主上下文读取失败：$path"
                         )
                     }
-                    taskMessages += HarnessMessage(
-                        role = HarnessMessageRole.ASSISTANT,
-                        content = "",
-                        toolCalls = listOf(call)
-                    )
-                    taskMessages += HarnessMessage(
-                        role = HarnessMessageRole.TOOL,
-                        content = buildToolResultMessage(result),
-                        toolCallId = call.id,
-                        toolName = call.name
-                    )
                 }
 
                 var activePurpose = HarnessModelPurpose.INITIAL
@@ -574,12 +609,12 @@ class AppHarnessOrchestrator(
                     )
                     if (turn.toolCalls.size != 1) {
                         if (turn.content.isNotBlank()) {
-                            taskMessages += HarnessMessage(
+                            appendConversationMessage(taskMessages, HarnessMessage(
                                 role = HarnessMessageRole.ASSISTANT,
                                 content = turn.content
-                            )
+                            ))
                         }
-                        taskMessages += HarnessMessage(
+                        appendConversationMessage(taskMessages, HarnessMessage(
                             role = HarnessMessageRole.USER,
                             content = buildIncompleteTaskPrompt(
                                 task = task,
@@ -589,27 +624,27 @@ class AppHarnessOrchestrator(
                                     "TASK_SINGLE_ACTION_REQUIRED"
                                 }
                             )
-                        )
+                        ))
                         activePurpose = HarnessModelPurpose.TOOL_FOLLOW_UP
                         return@repeat
                     }
 
                     val call = turn.toolCalls.single()
-                    taskMessages += HarnessMessage(
+                    appendConversationMessage(taskMessages, HarnessMessage(
                         role = HarnessMessageRole.ASSISTANT,
                         content = turn.content,
                         toolCalls = listOf(call)
-                    )
+                    ))
                     totalToolCalls++
                     val result = taskPolicyFailure(call, task, request.planPath)
                         ?: executeTool(request, call, iteration)
                     artifactPath = result.artifactPath ?: artifactPath
-                    taskMessages += HarnessMessage(
+                    appendConversationMessage(taskMessages, HarnessMessage(
                         role = HarnessMessageRole.TOOL,
                         content = buildToolResultMessage(result),
                         toolCallId = call.id,
                         toolName = call.name
-                    )
+                    ))
                     emit(
                         stage = GenerateTaskState.Stage.TOOL,
                         outcome = if (result.success) {
@@ -630,13 +665,13 @@ class AppHarnessOrchestrator(
                         result.success &&
                         task.path in result.changedFiles
                     if (!completed && call.name == TOOL_WRITE_FILE && result.success) {
-                        taskMessages += HarnessMessage(
+                        appendConversationMessage(taskMessages, HarnessMessage(
                             role = HarnessMessageRole.USER,
                             content = buildIncompleteTaskPrompt(
                                 task = task,
                                 reason = "TASK_TARGET_NOT_REPORTED_CHANGED"
                             )
-                        )
+                        ))
                     }
                     activePurpose = HarnessModelPurpose.TOOL_FOLLOW_UP
                 }

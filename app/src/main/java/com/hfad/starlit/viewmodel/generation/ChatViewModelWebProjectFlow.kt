@@ -5,6 +5,7 @@ import android.view.View
 import android.webkit.WebView
 import com.hfad.starlit.data.model.chat.GenerateTaskState
 import com.hfad.starlit.data.api.chat.model.ChatCallConfig
+import com.hfad.starlit.data.logging.chat.HarnessConversationStore
 import com.hfad.starlit.data.logging.harness.HarnessTraceLogger
 import com.hfad.starlit.data.logging.harness.HarnessTraceStatus
 import com.hfad.starlit.data.logging.harness.elapsedMillisSince
@@ -297,6 +298,7 @@ internal suspend fun ChatViewModel.generateWebProjectFlow(
             )
         )
         val isModification = existingFile != null
+        var resumableProjectPath: String? = existingFile?.absolutePath
         var inspector: GeneratedAppWebViewInspector? = null
         var inspectorWebView: WebView? = null
 
@@ -413,6 +415,11 @@ internal suspend fun ChatViewModel.generateWebProjectFlow(
                     "多文件项目草稿缺少版本号"
                 }
             )
+            resumableProjectPath = binding.entryFile.takeIf(File::isFile)?.absolutePath
+                ?: binding.projectRoot.absolutePath
+            withContext(Dispatchers.IO) {
+                repository.markSessionAsGenerate(state.sessionId, resumableProjectPath)
+            }
             val projectFileTool = withContext(Dispatchers.IO) {
                 WebProjectFileTool(binding.contentRoot).also { tool ->
                     ensureProjectEntryIdentity(binding, tool)
@@ -682,6 +689,9 @@ internal suspend fun ChatViewModel.generateWebProjectFlow(
                     inspectionAdapter.build(checkRequest)
                 }
             }
+            val restoredConversation = withContext(Dispatchers.IO) {
+                HarnessConversationStore.load(application, state.sessionId)
+            }
             val orchestrator = AppHarnessOrchestrator(
                 modelRepair = modelRepair,
                 fileTool = harnessFileTool,
@@ -703,6 +713,10 @@ internal suspend fun ChatViewModel.generateWebProjectFlow(
                         workspacePath = binding.contentRoot.absolutePath,
                         systemPrompt = projectSystemPrompt,
                         userInput = filteredInput.content,
+                        restoredConversation = restoredConversation,
+                        onConversationMessage = { message ->
+                            HarnessConversationStore.append(application, state.sessionId, message)
+                        },
                         artifactPath = binding.entryFile.absolutePath,
                         selfTestScript = GeneratedAppHarnessScripts.selfTest,
                         testSuiteScript = GeneratedAppHarnessScripts.testSuite,
@@ -851,7 +865,7 @@ internal suspend fun ChatViewModel.generateWebProjectFlow(
                         state = state,
                         message = result.reason,
                         diagnostics = result.diagnostics,
-                        entryPath = result.artifactPath ?: binding.entryFile.absolutePath,
+                        entryPath = resumableProjectPath,
                         isModification = isModification
                     )
                 }
@@ -883,7 +897,7 @@ internal suspend fun ChatViewModel.generateWebProjectFlow(
                 state = state,
                 message = error.message ?: "多文件项目生成失败",
                 diagnostics = listOf(error.message ?: error::class.java.simpleName),
-                entryPath = existingFile?.absolutePath,
+                entryPath = resumableProjectPath,
                 isModification = isModification
             )
             throw error
@@ -958,6 +972,24 @@ internal suspend fun ChatViewModel.planAndCreateWebProject(
                     }
                     state.harnessProgressReporter?.report(
                         message = "正在规划多文件项目 · $receivedChars 字符",
+                        stage = GenerateTaskState.Stage.PROMPT.name,
+                        iteration = 0,
+                        progress = 12
+                    )
+                }
+            },
+            onStatus = { message ->
+                withContext(Dispatchers.Main.immediate) {
+                    updateHarnessStage(
+                        state = state,
+                        phase = GenerateTaskState.Phase.PROMPTING,
+                        stage = GenerateTaskState.Stage.PROMPT,
+                        outcome = GenerateTaskState.Outcome.RUNNING,
+                        message = message,
+                        iteration = 0
+                    )
+                    state.harnessProgressReporter?.report(
+                        message = message,
                         stage = GenerateTaskState.Stage.PROMPT.name,
                         iteration = 0,
                         progress = 12
@@ -1140,6 +1172,9 @@ internal suspend fun ChatViewModel.failGeneratedWebProject(
         entryPath: String?,
         isModification: Boolean
     ) {
+        entryPath?.let { path ->
+            repository.markSessionAsGenerate(state.sessionId, path)
+        }
         val current = withContext(Dispatchers.Main.immediate) {
             val base = _generateTaskStates.value.orEmpty()[state.sessionId]
             val failed = (base ?: GenerateTaskState(
