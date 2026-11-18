@@ -94,6 +94,15 @@ internal object WebAppAcceptanceValidator {
                 "Acceptance contract must cover CORE_SUCCESS"
             )
         }
+        if (criteria.none {
+                WebAppAcceptanceCoverage.EMPTY_STATE in it.covers.orEmpty()
+            }
+        ) {
+            diagnostics += error(
+                "APP_SPEC_EMPTY_STATE_COVERAGE_MISSING",
+                "Acceptance contract must cover EMPTY_STATE"
+            )
+        }
         coreSuccessCriteria.filter { it.priority != WebAppAcceptancePriority.P0 }.forEach { criterion ->
             diagnostics += error(
                 "APP_SPEC_CORE_SUCCESS_PRIORITY_INVALID",
