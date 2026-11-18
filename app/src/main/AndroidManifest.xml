@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- 相机权限（Web App CameraTool 使用） -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" /> <!-- 网络权限 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- 振动权限 (VibrationTool) -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:description="@string/app_description"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@drawable/starlit"
+        android:label="@string/app_name"
+        android:roundIcon="@drawable/starlit"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Starlit">
+        <activity
+            android:name=".view.settings.ModelSettingActivity"
+            android:exported="false" />
+        <activity
+            android:name=".view.workspace.JsonViewerActivity"
+            android:exported="false" />
+        <activity
+            android:name=".view.settings.WorkspaceMemorySettingsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".view.settings.AppearanceSettingsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".view.diagnostics.RequestLogActivity"
+            android:exported="false" />
+        <activity
+            android:name=".view.settings.SettingsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".view.main.MainActivity"
+            android:configChanges="orientation|screenSize"
+            android:exported="true"
+            android:windowSoftInputMode="adjustNothing">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".view.webapp.VirtualAppActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Starlit">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data
+                    android:mimeType="text/html"
+                    android:scheme="content" />
+                <data
+                    android:mimeType="text/html"
+                    android:scheme="file" />
+                <data
+                    android:mimeType="application/octet-stream"
+                    android:scheme="content" />
+                <data
+                    android:mimeType="application/octet-stream"
+                    android:scheme="file" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data android:mimeType="text/html" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+        </activity> <!-- FileProvider 用于分享生成的 HTML -->
+        <service
+            android:name=".service.HarnessForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync"
+            android:stopWithTask="false" />
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+    </application>
+
+</manifest>

@@ -1,0 +1,68 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Base.Theme.Starlit" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">@color/mt_primary</item>
+        <item name="colorOnPrimary">@color/mt_on_primary</item>
+        <item name="colorPrimaryContainer">@color/mt_surface_blue</item>
+        <item name="colorOnPrimaryContainer">@color/mt_primary_dark</item>
+        <item name="colorSecondary">@color/mt_primary_dark</item>
+        <item name="colorOnSecondary">@color/mt_on_primary</item>
+        <item name="colorSurface">@color/mt_surface</item>
+        <item name="colorOnSurface">@color/mt_text_primary</item>
+        <item name="colorSurfaceVariant">@color/mt_surface_soft</item>
+        <item name="colorOnSurfaceVariant">@color/mt_text_secondary</item>
+        <item name="android:colorBackground">@color/mt_background</item>
+        <item name="colorOutline">@color/mt_outline</item>
+        <item name="colorError">@color/mt_error</item>
+        <item name="android:colorAccent">@color/mt_primary</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@color/mt_surface</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowBackground">@color/mt_background</item>
+        <item name="android:alertDialogTheme">@style/ThemeOverlay.Starlit.GlassAlertDialog</item>
+        <item name="alertDialogTheme">@style/ThemeOverlay.Starlit.GlassAlertDialog</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Starlit.GlassAlertDialog</item>
+    </style>
+
+    <style name="Theme.Starlit" parent="Base.Theme.Starlit" />
+
+    <style name="Theme.Starlit.CodeViewer" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:windowBackground">@color/mt_generate_surface</item>
+        <item name="android:colorBackground">@color/mt_generate_surface</item>
+        <item name="android:statusBarColor">@color/mt_generate_surface</item>
+        <item name="android:navigationBarColor">@color/mt_generate_surface</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">false</item>
+    </style>
+
+    <style name="ShapeAppearance.Starlit.Dialog" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">24dp</item>
+    </style>
+
+    <style name="ThemeOverlay.Starlit.GlassAlertDialog.Base" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="android:windowBackground">@drawable/bg_dialog_glass</item>
+        <item name="android:colorBackgroundFloating">@color/mt_dialog_glass</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.28</item>
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="backgroundInsetStart">24dp</item>
+        <item name="backgroundInsetEnd">24dp</item>
+        <item name="backgroundInsetTop">24dp</item>
+        <item name="backgroundInsetBottom">24dp</item>
+        <item name="colorSurface">@color/mt_dialog_glass</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.Starlit.Dialog</item>
+        <item name="android:windowAnimationStyle">@style/MtDialogAnimation</item>
+    </style>
+
+    <style name="ThemeOverlay.Starlit.GlassAlertDialog" parent="ThemeOverlay.Starlit.GlassAlertDialog.Base" />
+
+    <style name="MtDialogAnimation" parent="">
+        <item name="android:windowEnterAnimation">@anim/dialog_fade_in</item>
+        <item name="android:windowExitAnimation">@anim/dialog_fade_out</item>
+    </style>
+</resources>

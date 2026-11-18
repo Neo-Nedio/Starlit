@@ -1,0 +1,600 @@
+package com.hfad.starlit.adapter
+
+import android.animation.AnimatorInflater
+import android.animation.AnimatorSet
+import android.app.Dialog
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
+import android.view.LayoutInflater
+import android.view.MotionEvent
+import android.view.View
+import android.view.ViewGroup
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.widget.ImageView
+import android.widget.TextView
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
+import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.DataSource
+import com.bumptech.glide.load.engine.GlideException
+import com.bumptech.glide.request.RequestListener
+import com.bumptech.glide.request.target.Target
+import com.hfad.starlit.R
+import com.hfad.starlit.data.model.chat.ChatMessage
+import com.hfad.starlit.data.preferences.appearance.AppearanceSettingsStore
+import com.hfad.starlit.databinding.ItemChatAssistantBinding
+import com.hfad.starlit.databinding.ItemChatLoadingBinding
+import com.hfad.starlit.databinding.ItemChatUserBinding
+import com.hfad.starlit.webapp.runtime.StarlitWebViewRuntime
+import com.hfad.starlit.chat.format.RichTextFormatter
+import com.hfad.starlit.webapp.runtime.WebProjectContentServer
+import com.hfad.starlit.webapp.project.WebAppProjectResolver
+import com.hfad.starlit.webapp.project.WebAppProjectSnapshotKind
+import com.hfad.starlit.webapp.project.WebAppProjectWorkspace
+import java.io.File
+
+class ChatAdapter(
+    private val onDataChanged: ((itemCount: Int) -> Unit)? = null,
+    private val onFullscreenClick: ((htmlPath: String) -> Unit)? = null,
+    private val onMessageLongClick: ((ChatMessage) -> Unit)? = null,
+    private val onActiveWebViewChanged: ((WebView) -> Unit)? = null,
+    private val onWebViewReleased: ((WebView) -> Unit)? = null
+) : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(ChatMessageDiffCallback()) {
+
+    companion object {
+        private const val VIEW_TYPE_USER = 1
+        private const val VIEW_TYPE_ASSISTANT = 2
+        private const val VIEW_TYPE_LOADING = 3
+        private const val VIEW_TYPE_HARNESS = 4
+        private const val PAYLOAD_APPEARANCE_CHANGED = "appearance_changed"
+    }
+
+    private var appearanceSettings = AppearanceSettingsStore.Settings()
+    private var autoTextColor: Int = Color.BLACK
+    private val harnessActivityRenderer = HarnessActivityRenderer()
+
+    init {
+        setHasStableIds(true)
+        stateRestorationPolicy = RecyclerView.Adapter.StateRestorationPolicy.PREVENT_WHEN_EMPTY
+    }
+
+    fun updateAppearance(settings: AppearanceSettingsStore.Settings) {
+        if (appearanceSettings == settings) return
+        appearanceSettings = settings
+        notifyItemRangeChanged(0, itemCount, PAYLOAD_APPEARANCE_CHANGED)
+    }
+
+    fun updateAutoTextColor(color: Int) {
+        if (autoTextColor == color) return
+        autoTextColor = color
+        if (!appearanceSettings.hasFixedTextColor) {
+            notifyItemRangeChanged(0, itemCount, PAYLOAD_APPEARANCE_CHANGED)
+        }
+    }
+
+    override fun getItemViewType(position: Int): Int {
+        val message = getItem(position)
+        return when {
+            message.generateTaskState != null -> VIEW_TYPE_HARNESS
+            message.isStreaming && message.content.isBlank() -> VIEW_TYPE_LOADING
+            message.role == ChatMessage.ROLE_USER -> VIEW_TYPE_USER
+            else -> VIEW_TYPE_ASSISTANT
+        }
+    }
+
+    override fun getItemId(position: Int): Long {
+        val id = getItem(position).messageId
+        return if (id == RecyclerView.NO_ID) Long.MIN_VALUE else id
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        return when (viewType) {
+            VIEW_TYPE_USER -> UserMessageViewHolder(
+                ItemChatUserBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+            )
+            VIEW_TYPE_ASSISTANT -> AssistantMessageViewHolder(
+                ItemChatAssistantBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+            )
+            VIEW_TYPE_LOADING -> LoadingViewHolder(
+                ItemChatLoadingBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+            )
+            VIEW_TYPE_HARNESS -> harnessActivityRenderer.createViewHolder(parent)
+            else -> throw IllegalArgumentException("未知的视图类型: $viewType")
+        }
+    }
+
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        val message = getItem(position)
+        when (holder) {
+            is UserMessageViewHolder -> holder.bind(message)
+            is AssistantMessageViewHolder -> holder.bind(message)
+            is LoadingViewHolder -> holder.bind(message)
+            is HarnessActivityRenderer.HarnessActivityViewHolder -> {
+                message.generateTaskState?.let { state ->
+                    holder.bind(
+                        state,
+                        effectiveTextColor,
+                        effectiveSecondaryColor,
+                        effectiveMutedColor,
+                        appearanceSettings.chatTextSizeSp
+                    )
+                }
+            }
+        }
+    }
+
+    override fun onBindViewHolder(
+        holder: RecyclerView.ViewHolder,
+        position: Int,
+        payloads: MutableList<Any>
+    ) {
+        if (payloads.isNotEmpty()) {
+            val message = getItem(position)
+            when (holder) {
+                is UserMessageViewHolder -> {
+                    if (payloads.contains(PAYLOAD_APPEARANCE_CHANGED)) holder.bind(message)
+                    else super.onBindViewHolder(holder, position, payloads)
+                }
+                is AssistantMessageViewHolder -> {
+                    if (payloads.contains(PAYLOAD_APPEARANCE_CHANGED)) holder.bind(message)
+                    else holder.updateContent(message)
+                }
+                is LoadingViewHolder -> {
+                    if (payloads.contains(PAYLOAD_APPEARANCE_CHANGED)) holder.bind(message)
+                    else holder.updateThinking(message.thinking)
+                }
+                is HarnessActivityRenderer.HarnessActivityViewHolder -> {
+                    message.generateTaskState?.let { state ->
+                        holder.bind(
+                            state,
+                            effectiveTextColor,
+                            effectiveSecondaryColor,
+                            effectiveMutedColor,
+                            appearanceSettings.chatTextSizeSp
+                        )
+                    }
+                }
+                else -> super.onBindViewHolder(holder, position, payloads)
+            }
+        } else {
+            super.onBindViewHolder(holder, position, payloads)
+        }
+    }
+
+    override fun onCurrentListChanged(
+        previousList: MutableList<ChatMessage>,
+        currentList: MutableList<ChatMessage>
+    ) {
+        super.onCurrentListChanged(previousList, currentList)
+        onDataChanged?.invoke(currentList.size)
+    }
+
+    override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+        super.onViewRecycled(holder)
+        when (holder) {
+            is AssistantMessageViewHolder -> holder.clearWebView()
+            is LoadingViewHolder -> holder.unbind()
+        }
+    }
+
+    inner class UserMessageViewHolder(
+        private val binding: ItemChatUserBinding
+    ) : RecyclerView.ViewHolder(binding.root) {
+
+        init {
+            binding.root.setOnLongClickListener {
+                val pos = bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION) {
+                    onMessageLongClick?.invoke(getItem(pos))
+                    true
+                } else false
+            }
+        }
+
+        fun bind(message: ChatMessage) {
+            bindRichText(binding.tvMessage, message.content, RichTextRole.USER)
+            bindImage(binding.ivImage, message.imagePath)
+        }
+    }
+
+    inner class AssistantMessageViewHolder(
+        private val binding: ItemChatAssistantBinding
+    ) : RecyclerView.ViewHolder(binding.root) {
+        private var appWebView: WebView? = null
+        private var statusAnimatorSet: AnimatorSet? = null
+
+        init {
+            binding.root.setOnLongClickListener {
+                val pos = bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION) {
+                    onMessageLongClick?.invoke(getItem(pos))
+                    true
+                } else false
+            }
+        }
+
+        fun bind(message: ChatMessage) {
+            binding.tvAssistantStatus.setTextColor(effectiveMutedColor)
+            bindRichText(binding.tvMessage, message.content, RichTextRole.ASSISTANT)
+            bindImage(binding.ivImage, message.imagePath)
+            bindStatus(message)
+
+            val previewReady = message.appHtmlPath
+                ?.takeIf(String::isNotBlank)
+                ?.let(::setupWebView) == true
+            binding.webViewContainer.visibility = if (previewReady) View.VISIBLE else View.GONE
+            if (!previewReady) {
+                clearWebViewOnly()
+            }
+        }
+
+        private fun setupWebView(htmlPath: String): Boolean {
+            val snapshot = runCatching {
+                WebAppProjectResolver.resolve(File(htmlPath))
+            }.getOrElse {
+                return false
+            }
+            val isManagedProject = snapshot.kind != WebAppProjectSnapshotKind.LEGACY
+            val contentServer = if (isManagedProject) {
+                runCatching {
+                    WebProjectContentServer.create(
+                        projectRoot = snapshot.contentRoot,
+                        entryFile = snapshot.entryFile,
+                        projectId = snapshot.manifest.projectId,
+                        revision = snapshot.version?.let { version ->
+                            val prefix = if (snapshot.kind == WebAppProjectSnapshotKind.DRAFT) {
+                                "d"
+                            } else {
+                                "r"
+                            }
+                            "$prefix-$version"
+                        }
+                    )
+                }.getOrElse {
+                    return false
+                }
+            } else {
+                null
+            }
+
+            ensureWebView().apply {
+                webViewClient = contentServer?.let { server ->
+                    object : WebViewClient() {
+                        override fun shouldInterceptRequest(
+                            view: WebView,
+                            request: WebResourceRequest
+                        ): WebResourceResponse? {
+                            return runCatching { server.intercept(request) }.getOrNull()
+                                ?: super.shouldInterceptRequest(view, request)
+                        }
+                    }
+                } ?: WebViewClient()
+                webChromeClient = WebChromeClient()
+                settings.apply {
+                    javaScriptEnabled = true
+                    domStorageEnabled = true
+                    allowFileAccess = !isManagedProject
+                    allowContentAccess = !isManagedProject
+                    cacheMode = WebSettings.LOAD_DEFAULT
+                    useWideViewPort = true
+                    loadWithOverviewMode = true
+                }
+                if (contentServer != null) {
+                    StarlitWebViewRuntime.install(
+                        webView = this,
+                        htmlFile = snapshot.entryFile,
+                        storageFile = WebAppProjectWorkspace.runtimeStateFile(snapshot.projectRoot)
+                    )
+                } else {
+                    StarlitWebViewRuntime.install(this, snapshot.entryFile)
+                }
+                setOnTouchListener { view, event ->
+                    if (event.action == MotionEvent.ACTION_DOWN) {
+                        (view as? WebView)?.let { onActiveWebViewChanged?.invoke(it) }
+                    }
+                    false
+                }
+                loadUrl(contentServer?.entryUrl ?: "file://${snapshot.entryFile.absolutePath}")
+                onActiveWebViewChanged?.invoke(this)
+            }
+
+            binding.btnFullscreen.setOnClickListener {
+                onFullscreenClick?.invoke(htmlPath)
+            }
+            return true
+        }
+
+        private fun ensureWebView(): WebView {
+            return appWebView ?: WebView(binding.appWebViewHost.context).also { webView ->
+                binding.appWebViewHost.addView(
+                    webView,
+                    ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                )
+                appWebView = webView
+            }
+        }
+
+        fun clearWebView() {
+            statusAnimatorSet?.cancel()
+            statusAnimatorSet = null
+            clearWebViewOnly()
+        }
+
+        private fun clearWebViewOnly() {
+            appWebView?.let { webView ->
+                onWebViewReleased?.invoke(webView)
+                webView.loadUrl("about:blank")
+            }
+        }
+
+        fun updateContent(message: ChatMessage) {
+            bindRichText(binding.tvMessage, message.content, RichTextRole.ASSISTANT)
+            bindStatus(message)
+        }
+
+        private fun bindStatus(message: ChatMessage) {
+            val statusText = message.statusText
+            if (statusText.isNullOrBlank()) {
+                binding.statusContainer.visibility = View.GONE
+                statusAnimatorSet?.cancel()
+                statusAnimatorSet = null
+                return
+            }
+
+            binding.statusContainer.visibility = View.VISIBLE
+            binding.tvStatus.text = statusText
+            binding.tvStatus.textSize = (appearanceSettings.chatTextSizeSp - 3f).coerceAtLeast(12f)
+            binding.tvStatus.setTextColor(effectiveSecondaryColor)
+
+            val dotVisibility = if (message.showStatusLoader) View.VISIBLE else View.GONE
+            binding.dot1.visibility = dotVisibility
+            binding.dot2.visibility = dotVisibility
+            binding.dot3.visibility = dotVisibility
+
+            statusAnimatorSet?.cancel()
+            statusAnimatorSet = null
+            if (message.showStatusLoader) {
+                val animator = AnimatorInflater.loadAnimator(binding.root.context, R.animator.loading_animation)
+                if (animator is AnimatorSet) {
+                    statusAnimatorSet = animator
+                    statusAnimatorSet?.setTarget(binding.statusContainer)
+                    statusAnimatorSet?.start()
+                }
+            }
+        }
+    }
+
+    inner class LoadingViewHolder(
+        private val binding: ItemChatLoadingBinding
+    ) : RecyclerView.ViewHolder(binding.root) {
+
+        private var animatorSet: AnimatorSet? = null
+
+        fun bind(message: ChatMessage) {
+            val context = binding.root.context
+            binding.tvLoadingStatus.setTextColor(effectiveMutedColor)
+            binding.tvThinkingTitle.text = message.statusText ?: message.content.ifBlank { "正在处理" }
+            binding.tvThinkingTitle.textSize = appearanceSettings.chatTextSizeSp
+            binding.tvThinkingTitle.setTextColor(
+                ContextCompat.getColor(context, R.color.mt_text_primary)
+            )
+            updateThinking(message.thinking)
+            val animator = AnimatorInflater.loadAnimator(context, R.animator.loading_animation)
+            if (animator is AnimatorSet) {
+                animatorSet = animator
+                animatorSet?.setTarget(binding.loadingContainer)
+                animatorSet?.start()
+            }
+        }
+
+        fun updateThinking(thinking: String?) {
+            if (thinking.isNullOrEmpty()) {
+                binding.thinkingPanel.visibility = View.GONE
+                return
+            }
+            binding.thinkingPanel.visibility = View.VISIBLE
+            bindRichText(binding.tvThinking, thinking, RichTextRole.THINKING)
+            binding.svThinking.post { binding.svThinking.fullScroll(View.FOCUS_DOWN) }
+        }
+
+        fun unbind() {
+            animatorSet?.cancel()
+            animatorSet = null
+        }
+    }
+
+    private fun bindRichText(textView: TextView, content: String, role: RichTextRole) {
+        val context = textView.context
+        val palette = when (role) {
+            RichTextRole.USER -> RichTextFormatter.Palette(
+                textColor = effectiveTextColor,
+                secondaryColor = effectiveSecondaryColor,
+                accentColor = effectiveTextColor,
+                codeBackgroundColor = ContextCompat.getColor(context, R.color.mt_code_bg),
+                codeTextColor = ContextCompat.getColor(context, R.color.mt_code_text)
+            )
+            RichTextRole.ASSISTANT -> RichTextFormatter.Palette(
+                textColor = effectiveTextColor,
+                secondaryColor = effectiveSecondaryColor,
+                accentColor = effectiveTextColor,
+                codeBackgroundColor = ContextCompat.getColor(context, R.color.mt_code_bg),
+                codeTextColor = ContextCompat.getColor(context, R.color.mt_code_text)
+            )
+            RichTextRole.THINKING -> RichTextFormatter.Palette(
+                textColor = ContextCompat.getColor(context, R.color.mt_text_secondary),
+                secondaryColor = ContextCompat.getColor(context, R.color.mt_text_muted),
+                accentColor = ContextCompat.getColor(context, R.color.mt_primary_dark),
+                codeBackgroundColor = ContextCompat.getColor(context, R.color.mt_code_bg),
+                codeTextColor = ContextCompat.getColor(context, R.color.mt_code_text)
+            )
+        }
+        textView.textSize = appearanceSettings.chatTextSizeSp
+        textView.setTextColor(palette.textColor)
+        textView.setText(
+            RichTextFormatter.format(content, palette),
+            TextView.BufferType.SPANNABLE
+        )
+        textView.setTextIsSelectable(true)
+        textView.isLongClickable = true
+    }
+
+    private fun bindImage(imageView: ImageView, imagePath: String?) {
+        if (imagePath.isNullOrEmpty()) {
+            Glide.with(imageView).clear(imageView)
+            imageView.visibility = View.GONE
+            imageView.setOnClickListener(null)
+            return
+        }
+
+        imageView.visibility = View.VISIBLE
+        imageView.scaleType = ImageView.ScaleType.FIT_CENTER
+        imageView.layoutParams = imageView.layoutParams.apply {
+            width = ViewGroup.LayoutParams.WRAP_CONTENT
+            height = ViewGroup.LayoutParams.WRAP_CONTENT
+        }
+        imageView.setOnClickListener { showImagePreview(imageView, imagePath) }
+        Glide.with(imageView.context)
+            .load(imagePath)
+            .fitCenter()
+            .placeholder(R.drawable.ic_launcher_background)
+            .listener(object : RequestListener<Drawable> {
+                override fun onLoadFailed(
+                    e: GlideException?,
+                    model: Any?,
+                    target: Target<Drawable>,
+                    isFirstResource: Boolean
+                ): Boolean = false
+
+                override fun onResourceReady(
+                    resource: Drawable,
+                    model: Any,
+                    target: Target<Drawable>?,
+                    dataSource: DataSource,
+                    isFirstResource: Boolean
+                ): Boolean {
+                    resizeImageView(imageView, resource.intrinsicWidth, resource.intrinsicHeight)
+                    return false
+                }
+            })
+            .into(imageView)
+    }
+
+    private fun resizeImageView(imageView: ImageView, intrinsicWidth: Int, intrinsicHeight: Int) {
+        if (intrinsicWidth <= 0 || intrinsicHeight <= 0) return
+
+        val metrics = imageView.resources.displayMetrics
+        val maxWidth = (metrics.widthPixels * 0.68f).toInt().coerceAtMost(dp(imageView, 280))
+        val maxHeight = (metrics.heightPixels * 0.45f).toInt().coerceAtMost(dp(imageView, 420))
+        val scale = minOf(
+            1f,
+            maxWidth.toFloat() / intrinsicWidth.toFloat(),
+            maxHeight.toFloat() / intrinsicHeight.toFloat()
+        )
+        val targetWidth = (intrinsicWidth * scale).toInt().coerceAtLeast(1)
+        val targetHeight = (intrinsicHeight * scale).toInt().coerceAtLeast(1)
+
+        imageView.layoutParams = imageView.layoutParams.apply {
+            width = targetWidth
+            height = targetHeight
+        }
+    }
+
+    private fun showImagePreview(anchor: ImageView, imagePath: String) {
+        val context = anchor.context
+        val dialog = Dialog(context)
+        val preview = ImageView(context).apply {
+            setBackgroundColor(Color.BLACK)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            adjustViewBounds = true
+            setOnClickListener { dialog.dismiss() }
+        }
+        dialog.setContentView(
+            preview,
+            ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        )
+        dialog.window?.setWindowAnimations(R.style.MtDialogAnimation)
+        dialog.show()
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.BLACK))
+        dialog.window?.setLayout(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        )
+        Glide.with(context)
+            .load(imagePath)
+            .fitCenter()
+            .into(preview)
+    }
+
+    private fun dp(view: View, value: Int): Int {
+        return (value * view.resources.displayMetrics.density).toInt()
+    }
+
+    private val effectiveTextColor: Int
+        get() = if (appearanceSettings.hasFixedTextColor) {
+            appearanceSettings.chatTextColor
+        } else {
+            autoTextColor
+        }
+
+    private val effectiveSecondaryColor: Int
+        get() = ColorUtils.setAlphaComponent(effectiveTextColor, 184)
+
+    private val effectiveMutedColor: Int
+        get() = ColorUtils.setAlphaComponent(effectiveTextColor, 145)
+
+    private enum class RichTextRole {
+        USER,
+        ASSISTANT,
+        THINKING
+    }
+}
+
+class ChatMessageDiffCallback : DiffUtil.ItemCallback<ChatMessage>() {
+
+    override fun areItemsTheSame(oldItem: ChatMessage, newItem: ChatMessage): Boolean {
+        return oldItem.messageId == newItem.messageId
+    }
+
+    override fun areContentsTheSame(oldItem: ChatMessage, newItem: ChatMessage): Boolean {
+        return oldItem == newItem
+    }
+
+    override fun getChangePayload(oldItem: ChatMessage, newItem: ChatMessage): Any? {
+        if (oldItem.messageId == newItem.messageId &&
+            oldItem.role == newItem.role &&
+            oldItem.appHtmlPath == newItem.appHtmlPath &&
+            (oldItem.content != newItem.content ||
+                oldItem.statusText != newItem.statusText ||
+                oldItem.showStatusLoader != newItem.showStatusLoader) &&
+            oldItem.role == ChatMessage.ROLE_ASSISTANT) {
+            return "content_changed"
+        }
+
+        if (oldItem.messageId == newItem.messageId &&
+            oldItem.isStreaming && newItem.isStreaming &&
+            oldItem.thinking != newItem.thinking) {
+            return "thinking_changed"
+        }
+
+        if (oldItem.isStreaming != newItem.isStreaming) {
+            return null
+        }
+
+        return null
+    }
+}
