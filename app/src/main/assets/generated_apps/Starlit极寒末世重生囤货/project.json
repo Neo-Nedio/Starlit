@@ -22,40 +22,17 @@
     {
       "path": "assets/icon.svg",
       "role": "asset",
-      "description": "应用离线图标。",
+      "description": "应用图标与浏览器页签图标。",
       "dependsOn": [],
-      "ownsCriteria": []
-    },
-    {
-      "path": "manifest.webmanifest",
-      "role": "other",
-      "description": "可安装网页应用的名称、图标和显示设置。",
-      "dependsOn": [
-        "assets/icon.svg"
-      ],
-      "ownsCriteria": []
-    },
-    {
-      "path": "sw.js",
-      "role": "other",
-      "description": "安全来源环境中的本地静态资源离线缓存。",
-      "dependsOn": [
-        "index.html",
-        "styles/app.css",
-        "scripts/app.js",
-        "manifest.webmanifest",
-        "assets/icon.svg"
-      ],
       "ownsCriteria": []
     },
     {
       "path": "index.html",
       "role": "entry",
-      "description": "语义化页面入口，加载本地样式、脚本、清单和图标。",
+      "description": "语义化页面入口，加载本地样式、脚本和图标。",
       "dependsOn": [
         "styles/app.css",
         "scripts/app.js",
-        "manifest.webmanifest",
         "assets/icon.svg"
       ],
       "ownsCriteria": []
@@ -304,7 +281,7 @@
         "为 viewport-fit=cover 和 env(safe-area-inset-*) 留出安全区，底部导航及购物车不得遮挡页面内容。",
         "所有可交互按钮、输入框、选择器和切换控件的触控区域至少为 44px。",
         "采购、仓库和探索内容在窄屏单列显示，弹窗从底部展开并允许纵向滚动。",
-        "入口及全部资源使用项目相对路径；无 CDN、远程字体或远程媒体；应用无需 Node、npm、Vite 或服务器。"
+        "入口及全部资源使用项目相对路径；无 CDN、远程字体、远程媒体或服务器依赖；应用可直接由 Android WebView 离线运行。"
       ],
       "viewportWidths": [
         360,

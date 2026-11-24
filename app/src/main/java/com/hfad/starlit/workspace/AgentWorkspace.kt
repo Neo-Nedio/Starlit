@@ -3,6 +3,10 @@ package com.hfad.starlit.workspace
 import android.content.Context
 import com.hfad.starlit.tool.generated.GeneratedStarlitToolsDoc
 import com.hfad.starlit.webapp.project.WebAppProjectDataFiles
+import com.hfad.starlit.webapp.project.WebAppProjectResolver
+import com.hfad.starlit.webapp.project.WebAppProjectValidator
+import com.hfad.starlit.webapp.project.WebAppProjectWorkspace
+import com.hfad.starlit.webapp.project.WebProjectPlanCodec
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -19,6 +23,7 @@ object AgentWorkspace {
     private const val RECONNECT_RESUME_FILE = "RECONNECT_RESUME.md"
     private const val MEMORY_FILE = "MEMORY.md"
     private const val BUNDLED_WEB_APP_ASSETS_DIR = "generated_apps"
+    private val bundledWebAppSeedLock = Any()
 
     fun ensureWorkspace(context: Context) {
         webDir(context).mkdirs()
@@ -222,11 +227,43 @@ object AgentWorkspace {
 
         projectNames.forEach { projectName ->
             if (!isSafeAssetSegment(projectName)) return@forEach
-            copyBundledAssetTree(
-                context = context,
-                assetPath = "$BUNDLED_WEB_APP_ASSETS_DIR/$projectName",
-                destination = File(destinationRoot, projectName)
+            val assetPath = "$BUNDLED_WEB_APP_ASSETS_DIR/$projectName"
+            val projectRoot = File(destinationRoot, projectName)
+            synchronized(bundledWebAppSeedLock) {
+                seedBundledWebApp(context, assetPath, projectRoot)
+            }
+        }
+    }
+
+    private fun seedBundledWebApp(context: Context, assetPath: String, projectRoot: File) {
+        if (WebAppProjectWorkspace.manifestFile(projectRoot).isFile &&
+            WebAppProjectWorkspace.workspaceStateFile(projectRoot).isFile
+        ) return
+        if (projectRoot.exists() && projectRoot.listFiles().orEmpty().isNotEmpty()) return
+
+        val planText = runCatching {
+            context.assets.open("$assetPath/project.json").bufferedReader().use { it.readText() }
+        }.getOrNull() ?: return
+        val manifest = runCatching {
+            WebProjectPlanCodec.parse(planText, requireAppSpec = true).manifest
+        }.getOrNull() ?: return
+
+        var createdByThisCall = false
+        try {
+            val workspace = WebAppProjectWorkspace()
+            workspace.create(projectRoot, manifest)
+            createdByThisCall = true
+            val draft = workspace.latestDraft(projectRoot)
+                ?: throw IllegalStateException("Bundled web app draft was not created")
+            copyBundledAssetTree(context, assetPath, draft.contentRoot)
+            WebAppProjectValidator().validate(draft).requirePassed()
+            workspace.publishDraft(
+                projectRoot = projectRoot,
+                draftVersion = draft.version
+                    ?: throw IllegalStateException("Bundled web app draft has no version")
             )
+        } catch (error: Exception) {
+            if (createdByThisCall) projectRoot.deleteRecursively()
         }
     }
 

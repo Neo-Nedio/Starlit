@@ -15,7 +15,6 @@
   var warehouseSearch = "";
   var setup = { name: "林见秋", origin: "office", difficulty: "normal", talents: ["囤货大师"] };
   var saveBackend = "browser";
-  var previousInstallPrompt = null;
 
   var shops = [
     { id: "supermarket", name: "城北大型超市", icon: "🏬", place: "步行 25 分钟", hours: 2, kind: "实体", freight: 90 },
@@ -989,11 +988,11 @@
   function renderSettings() {
     var sound=state.settings.sound!==false,animations=state.settings.animations!==false;
     var backend=saveBackend==="StarlitApp.storage"?"Starlit 专属 JSON 存档":"浏览器本机存档";
-    return pageHeading("PREFERENCES · LOCAL SAVE","设置与存档","所有进度保存在当前设备。可以导出备份，在浏览器中安装为独立应用。",'<button type="button" class="button-primary" data-action="save-now">立即保存</button>')+
+    return pageHeading("PREFERENCES · LOCAL SAVE","设置与存档","进度保存在 Starlit Workspace 的应用存档中；关闭应用时，游戏时间暂停。",'<button type="button" class="button-primary" data-action="save-now">立即保存</button>')+
       '<div class="settings-grid">'+
         card("界面偏好",'<div class="list-rows"><div class="setting-row"><div><strong>动效</strong><small>减少界面切换动效。</small></div><button type="button" class="toggle '+(animations?"on":"")+'" data-action="setting-toggle" data-id="animations" aria-label="切换动效"></button></div><div class="setting-row"><div><strong>行动确认</strong><small>高风险探索和结束当天前显示确认。</small></div><button type="button" class="toggle '+(state.settings.confirmActions?"on":"")+'" data-action="setting-toggle" data-id="confirmActions" aria-label="切换行动确认"></button></div><div class="setting-row"><div><strong>游戏字号</strong><small>当前 '+state.settings.textScale+'%</small></div><button type="button" class="button-secondary" data-action="font-size">调整</button></div></div>')+
         card("游戏存档",'<div class="list-rows"><div class="setting-row"><div><strong>自动保存</strong><small>'+backend+' · key '+STORAGE_KEY+'</small></div><span class="tag cold">已启用</span></div><div class="setting-row"><div><strong>导出存档</strong><small>下载完整状态 JSON，可在另一设备导入。</small></div><button type="button" class="button-secondary" data-action="export-save">导出</button></div><div class="setting-row"><div><strong>导入存档</strong><small>导入后替换当前游戏进度。</small></div><button type="button" class="button-secondary" data-action="import-save">选择文件</button></div><div class="setting-row"><div><strong>删除本周目</strong><small>清空存档并重新创建角色。</small></div><button type="button" class="button-danger" data-action="reset-save">重新开始</button></div></div>')+
-        card("安装与运行",'<div class="list-rows"><div class="setting-row"><div><strong>安装为网页应用</strong><small>可从主屏幕或桌面直接打开，进度不受关闭影响。</small></div><button type="button" class="button-secondary" data-action="install-app">'+(previousInstallPrompt?"安装":"查看方式")+'</button></div><div class="setting-row"><div><strong>当前运行环境</strong><small>检测 Starlit WebView 原生存储桥。</small></div><span class="tag '+(storageBridge()?"cold":"")+'">'+(storageBridge()?"Starlit WebView":"本机浏览器")+'</span></div><div class="setting-row"><div><strong>内容规模</strong><small>'+items.length+' 种有用途物资 · 10 个渠道 · 15 个探索地点</small></div><span class="tag">离线可用</span></div></div>')+
+        card("运行环境",'<div class="list-rows"><div class="setting-row"><div><strong>当前运行环境</strong><small>应用由 Starlit Workspace 打开，优先使用 Android 原生 JSON 存档桥。</small></div><span class="tag '+(storageBridge()?"cold":"")+'">'+(storageBridge()?"Starlit WebView":"本机浏览器")+'</span></div><div class="setting-row"><div><strong>内容规模</strong><small>'+items.length+' 种有用途物资 · 10 个渠道 · 15 个探索地点</small></div><span class="tag">离线可用</span></div></div>')+
         card("运行规则",'<p class="muted" style="font-size:11px;margin:0">关闭应用时游戏暂停。行动按游戏时间推进；跨天会结算食物、饮水、能源、温度、状态、订单、物价与作物。游戏属性用于虚构生存模拟，不代表现实医疗建议。</p><div class="divider"></div><div class="list-row"><div class="row-main"><span class="item-icon">❄️</span><div><strong>Starlit极寒末世：重生囤货</strong><small>生存目标：筹备 30 天，末日后生存 100 天</small></div></div><span class="tag warm">v1.0</span></div>')
       +'</div><input id="save-file-input" type="file" accept="application/json,.json" hidden>';
   }
@@ -1666,14 +1665,6 @@
     };
     reader.readAsText(file);
   }
-  function installApp() {
-    if(previousInstallPrompt){
-      previousInstallPrompt.prompt();
-      previousInstallPrompt.userChoice.then(function(choice){toast(choice.outcome==="accepted"?"已开始安装 Starlit 极寒末世。":"安装已取消。");previousInstallPrompt=null;});
-      return;
-    }
-    modal("安装为网页应用",'<p class="muted" style="font-size:12px;margin-top:0">在支持的平台上，可从浏览器菜单选择“安装此网站为应用”或“添加到主屏幕”。在 Starlit 内部，应用由 Workspace 项目入口直接打开。</p><div class="list-row"><div class="row-main"><span class="item-icon">✳</span><div><strong>Starlit极寒末世：重生囤货</strong><small>离线静态资源 · 本机独立存档</small></div></div><span class="tag cold">READY</span></div>');
-  }
   function startNewConfirm() {
     confirmDialog("重新开始本周目","新周目会覆盖当前保存进度。建议先导出存档备份。","confirm-new-run","确认新周目");
   }
@@ -1753,7 +1744,6 @@
       state.settings.textScale=state.settings.textScale>=120?90:state.settings.textScale+10;
       document.documentElement.style.fontSize=state.settings.textScale+"%";refresh();toast("界面字号："+state.settings.textScale+"%。");return;
     }
-    if(action==="install-app"){installApp();return;}
     if(action==="dismiss-event"){state.event.resolved=true;finishAction("事件已暂时搁置。");return;}
     if(action==="new-quick"){startNewConfirm();return;}
   });
@@ -1808,12 +1798,7 @@
     if(state.gameWon==null)state.gameWon=false;
   }
   document.body.classList.toggle("no-animations",!!(state&&state.settings&&state.settings.animations===false));
-  if("serviceWorker" in navigator&&location.protocol!=="file:"){
-    navigator.serviceWorker.register("./sw.js").catch(function(){});
-  }
-
   if (window.addEventListener) {
-    window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();previousInstallPrompt=e;});
     window.addEventListener("beforeunload",saveState);
   }
 
