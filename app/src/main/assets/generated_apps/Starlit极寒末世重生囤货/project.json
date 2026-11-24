@@ -1,0 +1,353 @@
+{
+  "schemaVersion": 1,
+  "name": "Starlit极寒末世：重生囤货",
+  "entry": "index.html",
+  "files": [
+    {
+      "path": "styles/app.css",
+      "role": "style",
+      "description": "移动优先的响应式视觉系统、底部导航、安全区和触控布局。",
+      "dependsOn": [],
+      "ownsCriteria": []
+    },
+    {
+      "path": "scripts/app.js",
+      "role": "script",
+      "description": "生存模拟状态、Starlit JSON 存档、市场与主要游戏交互。",
+      "dependsOn": [],
+      "ownsCriteria": [
+        "AC-001"
+      ]
+    },
+    {
+      "path": "assets/icon.svg",
+      "role": "asset",
+      "description": "应用离线图标。",
+      "dependsOn": [],
+      "ownsCriteria": []
+    },
+    {
+      "path": "manifest.webmanifest",
+      "role": "other",
+      "description": "可安装网页应用的名称、图标和显示设置。",
+      "dependsOn": [
+        "assets/icon.svg"
+      ],
+      "ownsCriteria": []
+    },
+    {
+      "path": "sw.js",
+      "role": "other",
+      "description": "安全来源环境中的本地静态资源离线缓存。",
+      "dependsOn": [
+        "index.html",
+        "styles/app.css",
+        "scripts/app.js",
+        "manifest.webmanifest",
+        "assets/icon.svg"
+      ],
+      "ownsCriteria": []
+    },
+    {
+      "path": "index.html",
+      "role": "entry",
+      "description": "语义化页面入口，加载本地样式、脚本、清单和图标。",
+      "dependsOn": [
+        "styles/app.css",
+        "scripts/app.js",
+        "manifest.webmanifest",
+        "assets/icon.svg"
+      ],
+      "ownsCriteria": []
+    }
+  ],
+  "appSpec": {
+    "specVersion": 1,
+    "summary": "离线运行的极寒生存经营游戏：玩家在暴雪到来前准备物资和安全屋，再在极寒中管理健康、资源与关系。",
+    "primaryGoal": "创建幸存者周目，通过采购、仓储、设施建设、探索与每日生存决策完成 30 天筹备期并争取在极寒中生存 100 天。",
+    "selectors": [
+      {
+        "id": "selector-start-game",
+        "selector": "[data-testid='start-game']",
+        "purpose": "创建并开始一个新周目。"
+      },
+      {
+        "id": "selector-player-name",
+        "selector": "[data-testid='player-name']",
+        "purpose": "输入幸存者姓名。"
+      },
+      {
+        "id": "selector-phase-countdown",
+        "selector": "[data-testid='phase-countdown']",
+        "purpose": "显示当前日期和生存阶段。"
+      },
+      {
+        "id": "selector-end-day",
+        "selector": "[data-testid='end-day']",
+        "purpose": "结算当天并推进生存日期。"
+      },
+      {
+        "id": "selector-mobile-market",
+        "selector": "[data-testid='nav-market-mobile']",
+        "purpose": "从手机底部导航打开采购市场。"
+      },
+      {
+        "id": "selector-mobile-more",
+        "selector": "[data-testid='nav-more-mobile']",
+        "purpose": "从手机底部导航打开次级页面入口。"
+      }
+    ],
+    "screens": [
+      {
+        "id": "screen-setup",
+        "title": "角色创建",
+        "purpose": "选择出身、难度和天赋，开始新周目。",
+        "selectorIds": [
+          "selector-player-name",
+          "selector-start-game"
+        ]
+      },
+      {
+        "id": "screen-survival",
+        "title": "生存指挥台",
+        "purpose": "查看生存阶段、日期和每日决策。",
+        "selectorIds": [
+          "selector-phase-countdown",
+          "selector-end-day"
+        ]
+      },
+      {
+        "id": "screen-mobile-navigation",
+        "title": "手机导航",
+        "purpose": "通过底部导航切换核心页面，并从更多入口访问次级页面。",
+        "selectorIds": [
+          "selector-mobile-market",
+          "selector-mobile-more"
+        ]
+      }
+    ],
+    "components": [
+      {
+        "id": "component-character-setup",
+        "name": "角色创建表单",
+        "purpose": "为新周目设置角色与初始条件。",
+        "selectorIds": [
+          "selector-player-name",
+          "selector-start-game"
+        ],
+        "states": [
+          "未开始",
+          "已开始"
+        ]
+      },
+      {
+        "id": "component-survival-dashboard",
+        "name": "生存指挥台",
+        "purpose": "展示日期、阶段并推进每日结算。",
+        "selectorIds": [
+          "selector-phase-countdown",
+          "selector-end-day"
+        ],
+        "states": [
+          "筹备期",
+          "生存期",
+          "结束"
+        ]
+      },
+      {
+        "id": "component-mobile-navigation",
+        "name": "手机底部导航",
+        "purpose": "将拇指高频操作放在手机底部，并收纳次级页面。",
+        "selectorIds": [
+          "selector-mobile-market",
+          "selector-mobile-more"
+        ],
+        "states": [
+          "核心页面",
+          "更多页面"
+        ]
+      }
+    ],
+    "state": {
+      "persistence": "STARLIT_STORAGE",
+      "storageKey": "frostfall-game-v1",
+      "fields": [
+        {
+          "name": "version",
+          "type": "number",
+          "description": "游戏存档结构版本。",
+          "initialValue": "1"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "description": "幸存者姓名。",
+          "initialValue": "林见秋"
+        },
+        {
+          "name": "phase",
+          "type": "string",
+          "description": "当前筹备或极寒生存阶段。",
+          "initialValue": "prep"
+        },
+        {
+          "name": "day",
+          "type": "number",
+          "description": "游戏内日期。",
+          "initialValue": "1"
+        },
+        {
+          "name": "player",
+          "type": "object",
+          "description": "生命、饱食、水分、体温、精神和体力。"
+        },
+        {
+          "name": "inventory",
+          "type": "object",
+          "description": "仓库及随身背包物资。"
+        },
+        {
+          "name": "house",
+          "type": "object",
+          "description": "安全屋条件、设施、能源和储备。"
+        },
+        {
+          "name": "journal",
+          "type": "array",
+          "description": "行动记录、事件与成就。"
+        },
+        {
+          "name": "settings",
+          "type": "object",
+          "description": "交互确认、动画和字号偏好。"
+        }
+      ],
+      "emptyState": "无存档时显示角色创建页，允许设置幸存者并开始新周目。",
+      "errorStates": []
+    },
+    "interactions": [
+      {
+        "id": "interaction-start-run",
+        "title": "开始新周目",
+        "triggerSelectorId": "selector-start-game",
+        "outcome": "创建第 1 天筹备期状态，并将存档写入 StarlitApp.storage。",
+        "stateChanges": [
+          "创建 player、inventory、house 和日期状态",
+          "写入 frostfall-game-v1"
+        ]
+      },
+      {
+        "id": "interaction-advance-day",
+        "title": "结束当天",
+        "triggerSelectorId": "selector-end-day",
+        "outcome": "结算资源和生存状态后进入下一天。",
+        "stateChanges": [
+          "更新日期",
+          "结算健康、食物、饮水、温度与物资"
+        ]
+      },
+      {
+        "id": "interaction-open-market",
+        "title": "打开采购市场",
+        "triggerSelectorId": "selector-mobile-market",
+        "outcome": "显示可采购物资和购物车。",
+        "stateChanges": [
+          "切换到采购市场页面"
+        ]
+      }
+    ],
+    "userFlows": [
+      {
+        "id": "flow-new-survivor",
+        "title": "创建并开始幸存者周目",
+        "interactionIds": [
+          "interaction-start-run",
+          "interaction-open-market"
+        ],
+        "criterionIds": [
+          "AC-001"
+        ]
+      }
+    ],
+    "design": {
+      "theme": "极寒求生控制台：深色冷灰底、冰蓝状态信息和琥珀色关键行动。",
+      "tokens": [
+        {
+          "name": "color-background",
+          "value": "#101719",
+          "purpose": "页面主背景。"
+        },
+        {
+          "name": "color-panel",
+          "value": "#202c2e",
+          "purpose": "内容卡片背景。"
+        },
+        {
+          "name": "color-accent",
+          "value": "#e9ad61",
+          "purpose": "主要行动和警示强调。"
+        },
+        {
+          "name": "color-ice",
+          "value": "#a7d5d3",
+          "purpose": "阶段、天气和状态信息。"
+        },
+        {
+          "name": "radius-card",
+          "value": "15px",
+          "purpose": "手机卡片圆角。"
+        }
+      ],
+      "constraints": [
+        "采用移动优先布局，在 360px 和 393px 视口下保持单列主内容且不产生横向滚动。",
+        "不超过 900px 时隐藏桌面侧栏与状态栏，使用固定在底部的 6 项导航；次级页面收纳在“更多”。",
+        "为 viewport-fit=cover 和 env(safe-area-inset-*) 留出安全区，底部导航及购物车不得遮挡页面内容。",
+        "所有可交互按钮、输入框、选择器和切换控件的触控区域至少为 44px。",
+        "采购、仓库和探索内容在窄屏单列显示，弹窗从底部展开并允许纵向滚动。",
+        "入口及全部资源使用项目相对路径；无 CDN、远程字体或远程媒体；应用无需 Node、npm、Vite 或服务器。"
+      ],
+      "viewportWidths": [
+        360,
+        393
+      ],
+      "minTouchTargetPx": 44
+    },
+    "acceptanceContract": {
+      "criteria": [
+        {
+          "id": "AC-001",
+          "title": "从空存档开始游戏并持久化第 1 天状态",
+          "priority": "P0",
+          "covers": [
+            "CORE_SUCCESS",
+            "EMPTY_STATE",
+            "PERSISTENCE"
+          ],
+          "setup": [],
+          "actions": [
+            {
+              "type": "CLICK",
+              "target": "[data-testid='start-game']"
+            }
+          ],
+          "expected": [
+            {
+              "type": "VISIBLE",
+              "target": "[data-testid='phase-countdown']"
+            },
+            {
+              "type": "TEXT_CONTAINS",
+              "target": "[data-testid='phase-countdown']",
+              "value": "DAY 01"
+            },
+            {
+              "type": "STORAGE_EQUALS",
+              "target": "frostfall-game-v1",
+              "value": "{\"version\":1,\"name\":\"林见秋\",\"origin\":\"office\",\"difficulty\":\"normal\",\"talents\":[\"囤货大师\"],\"phase\":\"prep\",\"day\":1,\"survivalDay\":0,\"hour\":8,\"money\":78000,\"bank\":0,\"player\":{\"health\":100,\"hunger\":90,\"thirst\":88,\"stamina\":100,\"sanity\":90,\"bodyTemp\":36.5,\"cleanliness\":88,\"immunity\":90},\"skills\":{\"strength\":2,\"fitness\":2,\"medical\":1,\"engineering\":1,\"cooking\":2,\"farming\":1,\"trade\":2,\"exploration\":1,\"social\":1,\"survival\":2,\"learning\":1},\"inventory\":{\"warehouse\":{\"bottled-water\":24,\"emergency-ration\":10,\"fish-can\":8,\"firewood\":16,\"bandage\":3,\"down-coat\":1,\"tool-kit\":1,\"rice\":8,\"instant-noodles\":5,\"insulation-board\":2,\"duct-tape\":2,\"waterproof-seal\":1},\"pack\":{}},\"packLimit\":30,\"packVolume\":0.14,\"house\":{\"type\":\"城南公寓\",\"insulation\":58,\"defense\":22,\"storage\":1300,\"volume\":12,\"temperature\":19,\"waterCapacity\":120,\"waterStored\":38,\"grid\":true,\"heaterOn\":true,\"generator\":false,\"woodStove\":false,\"fridge\":false,\"freezer\":false,\"greenhouse\":false,\"growLight\":false,\"purifier\":false,\"solar\":false,\"battery\":false,\"batteryCharge\":0,\"ventilation\":false,\"camera\":false,\"workbench\":false,\"nightHeat\":0,\"upgrades\":[],\"rooms\":[\"卧室\",\"厨房\",\"储物间\"],\"appliances\":{\"fridge\":false,\"light\":true,\"radio\":false}},\"orders\":[],\"plots\":[],\"contacts\":{},\"event\":null,\"eventIds\":[],\"journal\":[],\"achievements\":[],\"settings\":{\"confirmActions\":true,\"animations\":true,\"textScale\":100},\"age\":{\"bottled-water\":0,\"emergency-ration\":0,\"fish-can\":0,\"firewood\":0,\"bandage\":0,\"down-coat\":0,\"tool-kit\":0,\"rice\":0,\"instant-noodles\":0,\"insulation-board\":0,\"duct-tape\":0,\"waterproof-seal\":0},\"counters\":{\"buys\":0,\"unitsBought\":0,\"workDays\":0,\"explores\":0,\"harvests\":0,\"crafts\":0,\"events\":0},\"actions\":{\"workDay\":0,\"studyDay\":0},\"gridFailureDay\":0,\"gameOver\":false,\"gameWon\":false,\"log\":[{\"day\":1,\"title\":\"准备期开始\",\"text\":\"整理清单、获取收入，并在寒潮前改造住所。你每天有有限的行动时间。\",\"icon\":\"◷\"},{\"day\":1,\"title\":\"重生归来\",\"text\":\"你在末日降临前 30 天醒来。前世记忆还在，时间和资金都有限。\",\"icon\":\"↺\"}],\"stock\":{\"supermarket\":{\"rice\":45,\"flour\":26,\"noodles\":36,\"instant-noodles\":38,\"oats\":16,\"bread\":22,\"crackers\":18,\"potato\":59,\"sweet-potato\":49,\"corn\":51,\"millet\":36,\"buckwheat\":19,\"instant-rice\":12,\"emergency-ration\":7,\"pork\":15,\"beef\":5,\"chicken\":19,\"fish\":10,\"eggs\":17,\"luncheon-meat\":12,\"beef-can\":12,\"fish-can\":16,\"pork-can\":7,\"dried-meat\":5,\"milk-powder\":4,\"beans\":26,\"tofu\":18,\"peanuts\":17,\"cabbage\":35,\"carrot\":25,\"tomato\":31,\"onion\":40,\"mushroom\":17,\"spinach\":44,\"apple\":22,\"orange\":20,\"pear\":23,\"dried-vegetables\":10,\"fruit-can\":7,\"freeze-dried-fruit\":7,\"mushroom-dry\":10,\"canned-peaches\":13,\"cooking-oil\":16,\"salt\":58,\"sugar\":19,\"soy-sauce\":15,\"vinegar\":16,\"chili-sauce\":12,\"hotpot-base\":15,\"seasoning\":11,\"chocolate\":11,\"bottled-water\":21,\"large-water\":27,\"water-purification\":20,\"juice\":22,\"milk\":18,\"tea\":26,\"coffee\":18,\"sports-drink\":24,\"thermos-water\":18,\"mineral-water\":26,\"cocoa\":24,\"rain-filter\":10,\"down-coat\":5,\"thermal-underwear\":18,\"snow-boots\":10,\"gloves\":22,\"scarf\":20,\"wool-socks\":27,\"insulated-pants\":10,\"wool-blanket\":11,\"sleeping-bag\":9,\"hand-warmer\":65,\"electric-blanket\":14,\"space-heater\":10,\"ski-goggles\":12,\"face-mask\":11,\"insulated-suit\":3,\"toilet-paper\":54,\"toothpaste\":46,\"toothbrush\":64,\"soap\":57,\"detergent\":24,\"trash-bags\":47,\"wet-wipes\":46,\"cleaning-kit\":29,\"sanitary-pads\":36,\"disposable-gloves\":49,\"portable-toilet\":18,\"waterproof-tarp\":15,\"novel\":25,\"comics\":30,\"handheld-game\":7,\"music-player\":5,\"chess\":38,\"playing-cards\":34,\"radio-drama\":16,\"photo-album\":42,\"harmonica\":16,\"board-game\":19,\"sketchbook\":35,\"plant-pot\":23,\"meal-rice\":17,\"meal-noodles\":23,\"meal-stew\":10,\"meal-porridge\":19,\"meal-beans\":11,\"meal-fish\":11,\"meal-hotpot\":8,\"meal-flatbread\":22},\"wholesale\":{\"rice\":47,\"flour\":38,\"noodles\":33,\"instant-noodles\":89,\"oats\":38,\"bread\":33,\"crackers\":31,\"potato\":86,\"sweet-potato\":61,\"corn\":57,\"millet\":54,\"buckwheat\":34,\"instant-rice\":14,\"emergency-ration\":15,\"pork\":16,\"beef\":12,\"chicken\":17,\"fish\":24,\"eggs\":40,\"luncheon-meat\":18,\"beef-can\":9,\"fish-can\":31,\"pork-can\":13,\"dried-meat\":11,\"milk-powder\":11,\"beans\":40,\"tofu\":50,\"peanuts\":16,\"cabbage\":73,\"carrot\":34,\"tomato\":46,\"onion\":60,\"mushroom\":30,\"spinach\":41,\"apple\":32,\"orange\":69,\"pear\":53,\"dried-vegetables\":18,\"fruit-can\":13,\"freeze-dried-fruit\":6,\"mushroom-dry\":15,\"canned-peaches\":26,\"cooking-oil\":20,\"salt\":60,\"sugar\":27,\"soy-sauce\":28,\"vinegar\":35,\"chili-sauce\":34,\"hotpot-base\":19,\"seasoning\":21,\"chocolate\":19,\"bottled-water\":31,\"large-water\":35,\"water-purification\":40,\"juice\":34,\"milk\":41,\"tea\":18,\"coffee\":26,\"sports-drink\":30,\"thermos-water\":27,\"mineral-water\":40,\"cocoa\":36,\"rain-filter\":11,\"toilet-paper\":62,\"toothpaste\":90,\"toothbrush\":50,\"soap\":55,\"detergent\":44,\"trash-bags\":94,\"wet-wipes\":81,\"cleaning-kit\":38,\"sanitary-pads\":54,\"disposable-gloves\":86,\"portable-toilet\":23,\"waterproof-tarp\":37,\"meal-rice\":24,\"meal-noodles\":29,\"meal-stew\":15,\"meal-porridge\":28,\"meal-beans\":23,\"meal-fish\":17,\"meal-hotpot\":10,\"meal-flatbread\":20},\"online\":{\"rice\":50,\"flour\":32,\"noodles\":28,\"instant-noodles\":53,\"oats\":18,\"bread\":26,\"crackers\":13,\"potato\":65,\"sweet-potato\":27,\"corn\":25,\"millet\":40,\"buckwheat\":13,\"instant-rice\":6,\"emergency-ration\":8,\"pork\":7,\"beef\":6,\"chicken\":15,\"fish\":12,\"eggs\":20,\"luncheon-meat\":11,\"beef-can\":9,\"fish-can\":10,\"pork-can\":12,\"dried-meat\":7,\"milk-powder\":6,\"beans\":13,\"tofu\":22,\"peanuts\":12,\"cabbage\":57,\"carrot\":29,\"tomato\":35,\"onion\":20,\"mushroom\":26,\"spinach\":34,\"apple\":28,\"orange\":24,\"pear\":26,\"dried-vegetables\":12,\"fruit-can\":14,\"freeze-dried-fruit\":5,\"mushroom-dry\":13,\"canned-peaches\":10,\"cooking-oil\":22,\"salt\":64,\"sugar\":24,\"soy-sauce\":26,\"vinegar\":29,\"chili-sauce\":18,\"hotpot-base\":9,\"seasoning\":21,\"chocolate\":8,\"bottled-water\":18,\"large-water\":18,\"water-purification\":16,\"juice\":26,\"milk\":20,\"tea\":20,\"coffee\":20,\"sports-drink\":14,\"thermos-water\":19,\"mineral-water\":24,\"cocoa\":12,\"rain-filter\":14,\"water-canteen\":22,\"water-tank\":3,\"bandage\":101,\"disinfectant\":38,\"fever-medicine\":38,\"painkillers\":40,\"cold-medicine\":18,\"medical-kit\":11,\"thermometer\":16,\"first-aid\":15,\"antibiotic\":14,\"vitamins\":18,\"stomach-medicine\":18,\"medical-mask\":88,\"battery\":90,\"powerbank\":12,\"diesel\":52,\"coal\":53,\"firewood\":81,\"gas-canister\":21,\"solar-panel\":6,\"generator\":2,\"battery-bank\":3,\"wind-turbine\":2,\"gasoline\":24,\"hand-crank\":7,\"solar-battery\":5,\"biofuel\":25,\"down-coat\":9,\"thermal-underwear\":16,\"snow-boots\":7,\"gloves\":24,\"scarf\":24,\"wool-socks\":35,\"insulated-pants\":13,\"wool-blanket\":15,\"sleeping-bag\":10,\"hand-warmer\":90,\"electric-blanket\":15,\"space-heater\":6,\"ski-goggles\":18,\"face-mask\":21,\"insulated-suit\":6,\"toilet-paper\":61,\"toothpaste\":59,\"toothbrush\":34,\"soap\":63,\"detergent\":43,\"trash-bags\":61,\"wet-wipes\":34,\"cleaning-kit\":17,\"sanitary-pads\":32,\"disposable-gloves\":51,\"portable-toilet\":12,\"waterproof-tarp\":19,\"timber\":58,\"steel\":32,\"glass\":13,\"screws\":53,\"wire\":56,\"duct-tape\":53,\"insulation-board\":35,\"cement\":49,\"tool-kit\":16,\"repair-parts\":30,\"multimeter\":9,\"wrench\":17,\"hammer\":16,\"hand-saw\":21,\"nails\":77,\"thermal-curtain\":10,\"door-lock\":18,\"water-filter\":9,\"flashlight\":16,\"radio\":9,\"steel-door-kit\":3,\"ventilation-kit\":5,\"waterproof-seal\":34,\"potato-seeds\":26,\"tomato-seeds\":17,\"cabbage-seeds\":37,\"carrot-seeds\":25,\"corn-seeds\":30,\"soy-seeds\":30,\"onion-seeds\":17,\"radish-seeds\":22,\"potting-soil\":39,\"fertilizer\":18,\"planter-box\":7,\"grow-light\":8,\"irrigation\":4,\"compost\":40,\"novel\":30,\"comics\":33,\"handheld-game\":7,\"music-player\":6,\"chess\":20,\"playing-cards\":28,\"radio-drama\":23,\"photo-album\":32,\"harmonica\":23,\"board-game\":12,\"sketchbook\":22,\"plant-pot\":16,\"fridge\":3,\"freezer\":2,\"induction-cooker\":5,\"led-lamp\":15,\"air-vent\":8,\"security-camera\":4,\"water-purifier\":5,\"electric-kettle\":10,\"freezer-box\":9,\"solar-lantern\":10,\"indoor-thermometer\":19,\"water-pump\":4,\"meal-rice\":26,\"meal-noodles\":13,\"meal-stew\":6,\"meal-porridge\":16,\"meal-beans\":15,\"meal-fish\":7,\"meal-hotpot\":5,\"meal-flatbread\":19},\"pharmacy\":{\"bandage\":101,\"disinfectant\":23,\"fever-medicine\":38,\"painkillers\":35,\"cold-medicine\":14,\"medical-kit\":11,\"thermometer\":14,\"first-aid\":12,\"antibiotic\":18,\"vitamins\":18,\"stomach-medicine\":25,\"medical-mask\":117,\"toilet-paper\":80,\"toothpaste\":37,\"toothbrush\":52,\"soap\":46,\"detergent\":37,\"trash-bags\":37,\"wet-wipes\":26,\"cleaning-kit\":25,\"sanitary-pads\":32,\"disposable-gloves\":44,\"portable-toilet\":16,\"waterproof-tarp\":25},\"hardware\":{\"water-canteen\":18,\"water-tank\":4,\"battery\":86,\"powerbank\":12,\"diesel\":33,\"coal\":47,\"firewood\":43,\"gas-canister\":37,\"solar-panel\":4,\"generator\":4,\"battery-bank\":5,\"wind-turbine\":3,\"gasoline\":26,\"hand-crank\":10,\"solar-battery\":4,\"biofuel\":23,\"toilet-paper\":45,\"toothpaste\":33,\"toothbrush\":46,\"soap\":57,\"detergent\":41,\"trash-bags\":32,\"wet-wipes\":31,\"cleaning-kit\":26,\"sanitary-pads\":30,\"disposable-gloves\":41,\"portable-toilet\":11,\"waterproof-tarp\":18,\"timber\":39,\"steel\":36,\"glass\":15,\"screws\":76,\"wire\":50,\"duct-tape\":51,\"insulation-board\":31,\"cement\":32,\"tool-kit\":17,\"repair-parts\":44,\"multimeter\":11,\"wrench\":24,\"hammer\":23,\"hand-saw\":12,\"nails\":36,\"thermal-curtain\":10,\"door-lock\":17,\"water-filter\":15,\"flashlight\":20,\"radio\":10,\"steel-door-kit\":2,\"ventilation-kit\":4,\"waterproof-seal\":32,\"potato-seeds\":18,\"tomato-seeds\":28,\"cabbage-seeds\":30,\"carrot-seeds\":36,\"corn-seeds\":15,\"soy-seeds\":32,\"onion-seeds\":27,\"radish-seeds\":31,\"potting-soil\":26,\"fertilizer\":23,\"planter-box\":11,\"grow-light\":5,\"irrigation\":5,\"compost\":38,\"fridge\":2,\"freezer\":2,\"induction-cooker\":5,\"led-lamp\":16,\"air-vent\":4,\"security-camera\":4,\"water-purifier\":3,\"electric-kettle\":10,\"freezer-box\":6,\"solar-lantern\":10,\"indoor-thermometer\":8,\"water-pump\":2},\"appliances\":{\"battery\":50,\"powerbank\":21,\"diesel\":25,\"coal\":73,\"firewood\":62,\"gas-canister\":26,\"solar-panel\":6,\"generator\":3,\"battery-bank\":4,\"wind-turbine\":2,\"gasoline\":43,\"hand-crank\":13,\"solar-battery\":7,\"biofuel\":33,\"fridge\":4,\"freezer\":2,\"induction-cooker\":9,\"led-lamp\":11,\"air-vent\":6,\"security-camera\":7,\"water-purifier\":4,\"electric-kettle\":7,\"freezer-box\":8,\"solar-lantern\":7,\"indoor-thermometer\":8,\"water-pump\":4},\"outdoor\":{\"water-canteen\":14,\"water-tank\":3,\"bandage\":106,\"disinfectant\":31,\"fever-medicine\":26,\"painkillers\":18,\"cold-medicine\":28,\"medical-kit\":13,\"thermometer\":19,\"first-aid\":11,\"antibiotic\":13,\"vitamins\":32,\"stomach-medicine\":20,\"medical-mask\":68,\"down-coat\":7,\"thermal-underwear\":17,\"snow-boots\":12,\"gloves\":20,\"scarf\":26,\"wool-socks\":33,\"insulated-pants\":8,\"wool-blanket\":9,\"sleeping-bag\":8,\"hand-warmer\":51,\"electric-blanket\":16,\"space-heater\":10,\"ski-goggles\":22,\"face-mask\":17,\"insulated-suit\":4,\"timber\":48,\"steel\":35,\"glass\":14,\"screws\":40,\"wire\":60,\"duct-tape\":40,\"insulation-board\":32,\"cement\":40,\"tool-kit\":12,\"repair-parts\":46,\"multimeter\":7,\"wrench\":12,\"hammer\":11,\"hand-saw\":20,\"nails\":34,\"thermal-curtain\":7,\"door-lock\":14,\"water-filter\":16,\"flashlight\":15,\"radio\":9,\"steel-door-kit\":2,\"ventilation-kit\":6,\"waterproof-seal\":20,\"potato-seeds\":19,\"tomato-seeds\":29,\"cabbage-seeds\":24,\"carrot-seeds\":37,\"corn-seeds\":24,\"soy-seeds\":23,\"onion-seeds\":22,\"radish-seeds\":32,\"potting-soil\":28,\"fertilizer\":17,\"planter-box\":9,\"grow-light\":7,\"irrigation\":3,\"compost\":37,\"novel\":32,\"comics\":26,\"handheld-game\":5,\"music-player\":11,\"chess\":23,\"playing-cards\":56,\"radio-drama\":12,\"photo-album\":34,\"harmonica\":21,\"board-game\":22,\"sketchbook\":42,\"plant-pot\":29},\"energy\":{\"battery\":86,\"powerbank\":23,\"diesel\":26,\"coal\":74,\"firewood\":53,\"gas-canister\":17,\"solar-panel\":4,\"generator\":3,\"battery-bank\":3,\"wind-turbine\":2,\"gasoline\":38,\"hand-crank\":10,\"solar-battery\":6,\"biofuel\":23,\"fridge\":4,\"freezer\":1,\"induction-cooker\":6,\"led-lamp\":9,\"air-vent\":5,\"security-camera\":6,\"water-purifier\":5,\"electric-kettle\":13,\"freezer-box\":4,\"solar-lantern\":6,\"indoor-thermometer\":17,\"water-pump\":2},\"farmers\":{\"rice\":24,\"flour\":28,\"noodles\":16,\"instant-noodles\":34,\"oats\":21,\"bread\":23,\"crackers\":20,\"potato\":31,\"sweet-potato\":46,\"corn\":30,\"millet\":20,\"buckwheat\":24,\"instant-rice\":11,\"emergency-ration\":6,\"pork\":9,\"beef\":6,\"chicken\":8,\"fish\":13,\"eggs\":22,\"luncheon-meat\":15,\"beef-can\":6,\"fish-can\":20,\"pork-can\":8,\"dried-meat\":7,\"milk-powder\":5,\"beans\":28,\"tofu\":27,\"peanuts\":18,\"cabbage\":38,\"carrot\":34,\"tomato\":39,\"onion\":42,\"mushroom\":19,\"spinach\":19,\"apple\":24,\"orange\":28,\"pear\":29,\"dried-vegetables\":16,\"fruit-can\":10,\"freeze-dried-fruit\":5,\"mushroom-dry\":11,\"canned-peaches\":17,\"cooking-oil\":20,\"salt\":31,\"sugar\":21,\"soy-sauce\":20,\"vinegar\":17,\"chili-sauce\":19,\"hotpot-base\":19,\"seasoning\":15,\"chocolate\":14,\"bottled-water\":13,\"large-water\":18,\"water-purification\":16,\"juice\":24,\"milk\":23,\"tea\":24,\"coffee\":23,\"sports-drink\":23,\"thermos-water\":26,\"mineral-water\":18,\"cocoa\":26,\"rain-filter\":14,\"water-canteen\":14,\"water-tank\":3,\"timber\":28,\"steel\":28,\"glass\":12,\"screws\":61,\"wire\":62,\"duct-tape\":37,\"insulation-board\":19,\"cement\":22,\"tool-kit\":10,\"repair-parts\":48,\"multimeter\":7,\"wrench\":19,\"hammer\":19,\"hand-saw\":16,\"nails\":70,\"thermal-curtain\":8,\"door-lock\":14,\"water-filter\":16,\"flashlight\":15,\"radio\":8,\"steel-door-kit\":2,\"ventilation-kit\":6,\"waterproof-seal\":46,\"potato-seeds\":20,\"tomato-seeds\":31,\"cabbage-seeds\":23,\"carrot-seeds\":38,\"corn-seeds\":25,\"soy-seeds\":22,\"onion-seeds\":17,\"radish-seeds\":33,\"potting-soil\":29,\"fertilizer\":18,\"planter-box\":6,\"grow-light\":7,\"irrigation\":7,\"compost\":26,\"meal-rice\":19,\"meal-noodles\":21,\"meal-stew\":10,\"meal-porridge\":28,\"meal-beans\":14,\"meal-fish\":12,\"meal-hotpot\":4,\"meal-flatbread\":13},\"secondhand\":{\"water-canteen\":12,\"water-tank\":2,\"battery\":50,\"powerbank\":10,\"diesel\":33,\"coal\":25,\"firewood\":22,\"gas-canister\":22,\"solar-panel\":3,\"generator\":1,\"battery-bank\":2,\"wind-turbine\":2,\"gasoline\":13,\"hand-crank\":6,\"solar-battery\":2,\"biofuel\":14,\"down-coat\":3,\"thermal-underwear\":9,\"snow-boots\":4,\"gloves\":7,\"scarf\":8,\"wool-socks\":12,\"insulated-pants\":4,\"wool-blanket\":7,\"sleeping-bag\":5,\"hand-warmer\":49,\"electric-blanket\":4,\"space-heater\":3,\"ski-goggles\":10,\"face-mask\":7,\"insulated-suit\":3,\"toilet-paper\":28,\"toothpaste\":21,\"toothbrush\":29,\"soap\":30,\"detergent\":14,\"trash-bags\":20,\"wet-wipes\":27,\"cleaning-kit\":8,\"sanitary-pads\":18,\"disposable-gloves\":28,\"portable-toilet\":8,\"waterproof-tarp\":14,\"timber\":16,\"steel\":24,\"glass\":4,\"screws\":35,\"wire\":26,\"duct-tape\":39,\"insulation-board\":22,\"cement\":13,\"tool-kit\":9,\"repair-parts\":13,\"multimeter\":6,\"wrench\":11,\"hammer\":11,\"hand-saw\":6,\"nails\":27,\"thermal-curtain\":4,\"door-lock\":6,\"water-filter\":11,\"flashlight\":12,\"radio\":3,\"steel-door-kit\":2,\"ventilation-kit\":3,\"waterproof-seal\":25,\"potato-seeds\":12,\"tomato-seeds\":20,\"cabbage-seeds\":20,\"carrot-seeds\":11,\"corn-seeds\":10,\"soy-seeds\":12,\"onion-seeds\":9,\"radish-seeds\":10,\"potting-soil\":19,\"fertilizer\":14,\"planter-box\":4,\"grow-light\":2,\"irrigation\":3,\"compost\":22,\"novel\":10,\"comics\":21,\"handheld-game\":4,\"music-player\":6,\"chess\":17,\"playing-cards\":15,\"radio-drama\":13,\"photo-album\":14,\"harmonica\":9,\"board-game\":8,\"sketchbook\":15,\"plant-pot\":13,\"fridge\":2,\"freezer\":1,\"induction-cooker\":4,\"led-lamp\":8,\"air-vent\":2,\"security-camera\":3,\"water-purifier\":2,\"electric-kettle\":3,\"freezer-box\":5,\"solar-lantern\":6,\"indoor-thermometer\":7,\"water-pump\":1}},\"marketQuality\":0.86}"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

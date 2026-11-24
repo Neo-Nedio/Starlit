@@ -18,9 +18,11 @@ object AgentWorkspace {
     private const val CHAT_FILE = "CHAT.md"
     private const val RECONNECT_RESUME_FILE = "RECONNECT_RESUME.md"
     private const val MEMORY_FILE = "MEMORY.md"
+    private const val BUNDLED_WEB_APP_ASSETS_DIR = "generated_apps"
 
     fun ensureWorkspace(context: Context) {
         webDir(context).mkdirs()
+        seedBundledWebApps(context)
         normalizeGeneratedAppProjects(context)
         toolDocDir(context).mkdirs()
         syncToolDocuments(context)
@@ -211,6 +213,51 @@ object AgentWorkspace {
         if (memory.isBlank()) memory = trimmed
         return memory.take(500)
     }
+
+    private fun seedBundledWebApps(context: Context) {
+        val destinationRoot = webDir(context)
+        val projectNames = runCatching {
+            context.assets.list(BUNDLED_WEB_APP_ASSETS_DIR).orEmpty().toList()
+        }.getOrDefault(emptyList())
+
+        projectNames.forEach { projectName ->
+            if (!isSafeAssetSegment(projectName)) return@forEach
+            copyBundledAssetTree(
+                context = context,
+                assetPath = "$BUNDLED_WEB_APP_ASSETS_DIR/$projectName",
+                destination = File(destinationRoot, projectName)
+            )
+        }
+    }
+
+    private fun copyBundledAssetTree(context: Context, assetPath: String, destination: File) {
+        val children = runCatching { context.assets.list(assetPath).orEmpty().toList() }
+            .getOrDefault(emptyList())
+        if (children.isNotEmpty()) {
+            if (destination.exists() && !destination.isDirectory) return
+            if (!destination.exists() && !destination.mkdirs()) return
+            children.filter(::isSafeAssetSegment).forEach { child ->
+                copyBundledAssetTree(
+                    context = context,
+                    assetPath = "$assetPath/$child",
+                    destination = File(destination, child)
+                )
+            }
+            return
+        }
+
+        if (destination.exists()) return
+        destination.parentFile?.mkdirs()
+        runCatching {
+            context.assets.open(assetPath).use { input ->
+                destination.outputStream().use { output -> input.copyTo(output) }
+            }
+        }.onFailure { destination.delete() }
+    }
+
+    private fun isSafeAssetSegment(segment: String): Boolean =
+        segment.isNotBlank() && segment != "." && segment != ".." &&
+            '/' !in segment && '\\' !in segment
 
     private fun webDir(context: Context) = File(context.filesDir, WEB_DIR)
     private fun toolDocDir(context: Context) = File(context.filesDir, TOOL_DOC_DIR)
